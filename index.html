@@ -154,6 +154,27 @@ h1,h2,h3{margin:0}
 .res-medallas span{background:#fff7cf;color:#3a2a00;border-radius:14px;padding:4px 12px;font-weight:800;font-size:16px}
 @media (prefers-reduced-motion:reduce){#medalla-pop.ver{animation:none;opacity:1;transform:translate(-50%,0)}}
 
+/* sala de trofeos */
+#p-trofeos{align-items:center;gap:12px;background:radial-gradient(ellipse at 50% 0%,rgba(255,226,122,.18),transparent 60%)}
+.sala{width:100%;max-width:1040px;display:flex;flex-direction:column;gap:14px}
+.sala-stats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.sala-stats span{background:rgba(0,0,0,.35);border:2px solid var(--tiza2);border-radius:999px;padding:5px 14px;font-weight:800;font-size:clamp(14px,2vmin,18px)}
+.vitrina{background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.04));border:3px solid #b98a4a;border-radius:18px;padding:10px 14px 0;box-shadow:inset 0 0 30px rgba(0,0,0,.35)}
+.vitrina h2{margin:0 0 6px;font-size:clamp(17px,2.6vmin,24px);color:#ffe27a}
+.balda{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;padding-bottom:12px;border-bottom:12px solid #8a5a24;box-shadow:0 6px 0 #5b3a14}
+.trofeo{display:flex;flex-direction:column;align-items:center;text-align:center;gap:2px;padding:6px 4px;border-radius:12px;min-width:0}
+.trofeo .ic{font-size:clamp(38px,6.5vmin,56px);line-height:1;position:relative}
+.trofeo .ic i{position:absolute;right:-12px;bottom:-4px;font-style:normal;font-size:.55em}
+.trofeo b{font-size:clamp(13px,1.9vmin,16px)}
+.trofeo small{font-size:clamp(11.5px,1.6vmin,14px);opacity:.9}
+.trofeo.si .ic{filter:drop-shadow(0 0 8px rgba(255,226,122,.9));animation:brillo 3s ease-in-out infinite}
+.trofeo.si:nth-child(2n) .ic{animation-delay:.7s}.trofeo.si:nth-child(3n) .ic{animation-delay:1.4s}
+@keyframes brillo{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.trofeo.no{opacity:.38;filter:grayscale(1)}
+.sala-nota{font-size:clamp(13px,1.8vmin,16px);text-align:center;opacity:.95}
+#mapa-guarda{width:100%;max-width:1040px;font-size:clamp(13px,1.8vmin,16px);font-weight:700;text-align:center;background:rgba(255,226,122,.16);border:2px dashed #ffe27a;border-radius:14px;padding:8px 12px}
+@media (prefers-reduced-motion:reduce){.trofeo.si .ic{animation:none}}
+
 /* menú */
 #p-menu{align-items:center;gap:12px}
 .modos{display:grid;gap:16px;width:100%;max-width:1000px;flex:1 0 auto;min-height:0;align-content:center}
@@ -435,6 +456,7 @@ body.jefe .tarjeta .cat{color:#7b1fa2}
         <div class="fila-opc" id="opc-grupo" role="group" aria-label="Grupo"></div>
         <div class="msg" id="msg-curso" role="status"></div>
         <button type="button" class="btn verde grande" id="curso-sig" disabled>Siguiente ▶</button>
+        <button type="button" class="btn suave" id="curso-recuperar">♻ Recuperar mi progreso</button>
       </div>
     </section>
 
@@ -464,11 +486,22 @@ body.jefe .tarjeta .cat{color:#7b1fa2}
       <p class="sub" id="mapa-sub">Elige un mundo para entrenar.</p>
       <div class="mapa" id="mapa"></div>
       <div class="mapa-faltan" id="mapa-faltan" role="status"></div>
+      <div id="mapa-guarda" role="note" hidden></div>
       <div class="fila-botones">
         <button class="btn" id="btn-ayuda" type="button">❓ Cómo funciona</button>
         <button class="btn suave" id="btn-cambiar" type="button">🔁 Cambiar alumno</button>
       </div>
       <div class="escena" id="escena-menu" aria-hidden="true" hidden></div>
+    </section>
+
+    <!-- 2b. SALA DE TROFEOS -->
+    <section id="p-trofeos" class="pantalla scroll" aria-label="Sala de trofeos">
+      <div class="mapa-cab"><h1 class="titulo" id="tro-titulo">🏆 Sala de trofeos</h1></div>
+      <div class="sala" id="tro-cuerpo"></div>
+      <div class="fila-botones">
+        <button class="btn verde" id="tro-volver" type="button">🗺 Volver al mapa</button>
+        <button class="btn" id="tro-copia" type="button">💾 Copia de seguridad</button>
+      </div>
     </section>
 
     <!-- 3. JUEGO -->
@@ -1959,8 +1992,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     }
     return o;
   }
-  function exportarTodo() {
-    var filas = Almacen.partidas().map(function (p) {
+  function exportarTodo(filtro) {
+    var filas = Almacen.partidas().filter(function (p) { return !filtro || filtro(p); }).map(function (p) {
       var n = p.niveles || {}, f = function (x) { return x === null || x === undefined ? -1 : x; };
       return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]).concat([grupoValido(p.grupo) ? p.grupo : '']);   // repaso: tema, nivel inicial, refuerzos
     });
@@ -1987,6 +2020,49 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         if (f[1] === 'JF') rec.vidas = f[14];
         rec.codigo = armarCodigo(rec, d);
         Almacen.mem.partidas.push(rec); r.anadidas++;
+      });
+    });
+    Almacen.guardar();
+    return r;
+  }
+
+
+  /* ---- copia de seguridad: progreso (niveles, medallas, jefe) + sesiones de un alumno o de todo el dispositivo ----
+   *  Texto «MP1:…» (progreso) y «MN1:…» (sesiones), ambos con control de erratas. Al restaurar se FUSIONA: no pisa lo más reciente. */
+  var CLAVE_PROG = /^(?:([1-3][A-G])\|)?(\d{1,2})-([1-5JM])$/;
+  function copiaDatos(g, l) {                                  // g === null: todo el dispositivo
+    var todo = g === null || g === undefined, pref = todo ? null : (g ? g + '|' : '') + l + '-', prog = {};
+    Object.keys(Almacen.mem.prog || {}).forEach(function (k) { if (todo || k.indexOf(pref) === 0) prog[k] = Almacen.mem.prog[k]; });
+    var carga = b64enc(JSON.stringify({ v: 1, prog: prog }));
+    var mp = 'MP1:' + carga + ':' + b32(hash32('mp-copia|' + carga), 6);
+    return mp + '\n' + exportarTodo(todo ? null : function (p) { return (p.grupo || '') === (g || '') && p.lista === l; });
+  }
+  function limpiarProg(k, v) {                                  // acepta solo estructuras conocidas
+    var m = CLAVE_PROG.exec(k), num = function (x) { return typeof x === 'number' && isFinite(x); };
+    if (!m || !v || typeof v !== 'object') return null;
+    if (m[3] === 'J') return { vencido: !!v.vencido, mejor: num(v.mejor) ? clamp(v.mejor, 0, 20) : 0, intentos: num(v.intentos) ? clamp(v.intentos, 0, 999) : 0, ts: num(v.ts) ? v.ts : 0 };
+    if (m[3] === 'M') { var mm = {}; if (v.m && typeof v.m === 'object') Object.keys(v.m).forEach(function (id) { if (/^[a-z0-9]{2,5}$/.test(id) && num(v.m[id])) mm[id] = clamp(Math.round(v.m[id]), 0, 999); }); return { m: mm, ts: num(v.ts) ? v.ts : 0 }; }
+    if (!num(v.theta)) return null;
+    return { theta: clamp(v.theta, 1, 10), n: num(v.n) ? clamp(v.n, 0, 99999) : 0, ts: num(v.ts) ? v.ts : 0 };
+  }
+  function restaurarCopia(texto) {
+    var r = { prog: 0, anadidas: 0, duplicadas: 0, invalidas: 0, alumno: null };
+    var toks = String(texto).split(/\s+/).filter(function (t) { return t.length > 0; });
+    toks.forEach(function (t) {
+      if (t.indexOf('MN1:') === 0) { var x = importarTodo(t); r.anadidas += x.anadidas; r.duplicadas += x.duplicadas; r.invalidas += x.invalidas; return; }
+      var parts = t.split(':');
+      if (parts.length !== 3 || parts[0] !== 'MP1' || b32(hash32('mp-copia|' + parts[1]), 6) !== parts[2]) { r.invalidas++; return; }
+      var o; try { o = JSON.parse(b64dec(parts[1])); } catch (e) { r.invalidas++; return; }
+      if (!o || o.v !== 1 || !o.prog || typeof o.prog !== 'object') { r.invalidas++; return; }
+      Object.keys(o.prog).forEach(function (k) {
+        var nv = limpiarProg(k, o.prog[k]); if (!nv) { r.invalidas++; return; }
+        var ac = Almacen.mem.prog[k], suf = CLAVE_PROG.exec(k)[3];
+        if (!ac) Almacen.mem.prog[k] = nv;
+        else if (suf === 'M') { Object.keys(nv.m).forEach(function (id) { ac.m[id] = Math.max(ac.m[id] || 0, nv.m[id]); }); }
+        else if (suf === 'J') { ac.vencido = !!ac.vencido || nv.vencido; ac.mejor = Math.max(ac.mejor || 0, nv.mejor); ac.intentos = Math.max(ac.intentos || 0, nv.intentos); }
+        else if (nv.ts > (ac.ts || 0)) Almacen.mem.prog[k] = nv;
+        r.prog++;
+        var mm = CLAVE_PROG.exec(k); if (!r.alumno) r.alumno = { grupo: mm[1] || '', lista: parseInt(mm[2], 10) };
       });
     });
     Almacen.guardar();
@@ -2202,6 +2278,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
     generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
     jefeEstado: jefeEstado,
+    copiaDatos: copiaDatos, restaurarCopia: restaurarCopia,
     medallas: function () { return medallasAlumno(); },
     fijarGrupo: function (g) { grupoActual = grupoValido(g) ? g : ''; },
     grupo: function () { return grupoActual; },
@@ -2303,6 +2380,62 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function htmlMedallasSesion(ids) {
     return '<div class="res-medallas">' + ids.map(function (id) { var mm = MEDALLAS.filter(function (x) { return x.id === id; })[0]; return mm ? '<span>' + mm.ic + ' ' + esc(mm.n) + '</span>' : ''; }).join('') + '</div>';
   }
+  /* --- sala de trofeos, copia de seguridad y recuperación --- */
+  UI.copiarTexto = function (txt, ok, mal) {
+    var fallback = function () { var t = $('copia-txt'), r = false; try { if (t) { t.focus(); t.select(); } r = document.execCommand('copy'); } catch (e) { r = false; } (r ? ok : mal)(); };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, fallback); else fallback(); } catch (e) { fallback(); }
+  };
+  UI.descargarTexto = function (txt, nombre) {
+    try {
+      var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' }), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(a.href); } catch (e) { /* nada */ } }, 2000); return true;
+    } catch (e) { return false; }
+  };
+  UI.abrirCopia = function () {
+    var txt = copiaDatos(grupoActual, alumnoActual);
+    Modal.abrir('<h2>💾 Copia de seguridad</h2><p>Guarda este texto en <b>Notas</b>, en un correo o en un archivo. Si algún día se borra el progreso de esta iPad, pulsa «Recuperar mi progreso» y pégalo: vuelven tus niveles, medallas y sesiones.</p>' +
+      '<textarea class="csv" id="copia-txt" readonly aria-label="Texto de la copia de seguridad" style="min-height:110px"></textarea><div class="aviso-ok" id="copia-msg" role="status"></div>',
+      [{ t: '📋 Copiar', cls: 'verde', id: 'copia-copiar', fn: function () { UI.copiarTexto(txt, function () { $('copia-msg').textContent = '✅ Copiado. Pégalo en Notas o en un correo.'; }, function () { $('copia-msg').textContent = 'Selecciona el texto y cópialo a mano.'; }); } },
+       { t: '⬇ Guardar archivo', fn: function () { $('copia-msg').textContent = UI.descargarTexto(txt, 'repaso-mates-copia-' + etqGrupo(grupoActual) + '-n' + alumnoActual + '.txt') ? '✅ Archivo guardado (mira en Descargas / Archivos).' : 'No se pudo guardar el archivo: copia el texto.'; } },
+       { t: 'Cerrar', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); }, sinFoco: true });
+    $('copia-txt').value = txt;
+  };
+  UI.abrirRecuperar = function () {
+    Modal.abrir('<h2>♻ Recuperar mi progreso</h2><p>Pega aquí el texto de tu copia de seguridad (empieza por <code>MP1:</code>).</p>' +
+      '<textarea class="csv" id="rec-txt" placeholder="MP1:…" aria-label="Texto de la copia de seguridad" style="min-height:110px"></textarea><div class="aviso-ok" id="rec-msg" role="status"></div>',
+      [{ t: 'Cancelar', fn: function () { Modal.cerrar(); } },
+       { t: 'Recuperar', cls: 'verde', id: 'rec-go', fn: function () {
+         var r = restaurarCopia($('rec-txt').value), m = $('rec-msg');
+         if (!r.prog && !r.anadidas) { m.className = 'aviso-mal'; m.textContent = r.invalidas ? 'Ese texto no es válido: revisa que lo has copiado entero.' : (r.duplicadas ? 'Todo eso ya estaba guardado en esta iPad.' : 'No hay nada que recuperar.'); return; }
+         m.className = 'aviso-ok';
+         m.textContent = '✅ Recuperado: ' + r.prog + ' dato(s) de progreso y ' + r.anadidas + ' sesión(es).' + (r.alumno ? ' Es el progreso de ' + etqAlumno(r.alumno.grupo, r.alumno.lista) + ': elige ese curso, grupo y número.' : '');
+         if (r.alumno && grupoValido(r.alumno.grupo) && UI.pant === 'curso') { UI.selCurso = r.alumno.grupo.charAt(0); UI.selGrupo = r.alumno.grupo.charAt(1); UI.pintarCurso(); }
+       } }], { cancel: function () { Modal.cerrar(); } });
+  };
+  UI.irTrofeos = function () {
+    var N = alumnoActual, ps = Almacen.partidas().filter(function (p) { return (p.grupo || '') === grupoActual && p.lista === N && (p.modo === 'RP' || p.modo === 'JF'); });
+    var pre = 0, ac = 0, rac = 0; ps.forEach(function (p) { pre += p.aciertos + p.errores + (p.blancos || 0); ac += p.aciertos; if (p.mejorRacha > rac) rac = p.mejorRacha; });
+    var got = medallasAlumno(), jf = jefeEstado(N), nm = Object.keys(got).length, i, niv = [0], listos = 0;
+    for (i = 1; i <= 5; i++) { niv[i] = nivelTema(N, i); if (niv[i] >= 6) listos++; }
+    $('tro-titulo').textContent = '🏆 Sala de trofeos · ' + etqAlumno(grupoActual, N);
+    var h = '<div class="sala-stats"><span>📝 ' + ps.length + ' sesiones</span><span>❓ ' + pre + ' preguntas</span><span>🎯 ' + (pre ? Math.round(100 * ac / pre) : 0) + ' % de acierto</span><span>🔥 racha máx. ' + rac + '</span><span>⭐ ' + listos + '/5 mundos con nivel 6</span></div>';
+    h += '<div class="vitrina"><h2>Copas de los mundos</h2><div class="balda">';
+    for (i = 1; i <= 5; i++) {
+      var n = niv[i], tier = n >= 9 ? ['🥇', 'oro'] : (n >= 6 ? ['🥈', 'plata'] : (n >= 3 ? ['🥉', 'bronce'] : null));
+      h += '<div class="trofeo ' + (tier ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (tier ? '🏆' : '🔒') + (tier ? '<i>' + tier[0] + '</i>' : '') + '</span><b>' + MUNDOS[i] + '</b><small>' + (tier ? 'Copa de ' + tier[1] + ' · nivel ' + n : (n ? 'Nivel ' + n + ' (bronce en 3)' : 'Sin empezar')) + '</small></div>';
+    }
+    h += '</div></div>';
+    h += '<div class="vitrina"><h2>Trofeo del Jefe Final</h2><div class="balda"><div class="trofeo ' + (jf.vencido ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (jf.vencido ? '👑' : '🔒') + '</span><b>Corona de Lord Negativo</b><small>' + (jf.vencido ? 'Vencido · mejor ' + jf.mejor + '/20 · ' + jf.intentos + ' intento(s)' : (jf.abierto ? '¡El castillo está abierto!' : 'Nivel 6 en los 5 mundos')) + '</small></div></div></div>';
+    h += '<div class="vitrina"><h2>Medallas · ' + nm + ' de ' + MEDALLAS.length + '</h2><div class="balda">' + MEDALLAS.map(function (m) {
+      return '<div class="trofeo ' + (got[m.id] ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (got[m.id] ? m.ic : '🔒') + '</span><b>' + esc(m.n) + (got[m.id] > 1 ? ' ×' + got[m.id] : '') + '</b><small>' + esc(m.d) + '</small></div>';
+    }).join('') + '</div></div>';
+    h += '<p class="sala-nota">Tu progreso se guarda en <b>esta iPad</b>. Haz de vez en cuando una 💾 copia de seguridad para no perder nada.</p>';
+    $('tro-cuerpo').innerHTML = h;
+    UI.mostrar('p-trofeos');
+  };
+  var esIOS = function () { var u = navigator.userAgent || ''; return /iP(ad|hone|od)/.test(u) || (/Macintosh/.test(u) && (navigator.maxTouchPoints || 0) > 1); };
+  var esApp = function () { try { return navigator.standalone === true || (G.matchMedia && G.matchMedia('(display-mode: standalone)').matches); } catch (e) { return false; } };
   var azar = function (a) { return a[Math.floor(Math.random() * a.length)]; };   // aleatorio cosmético
 
   UI.modalAbierto = false;
@@ -2408,10 +2541,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var hp = jf.abierto ? POS_CASTILLO : POS[sug || 1];
     h += '<div class="heroe" style="--x:' + hp[0] + '%;--y:' + hp[1] + '%" aria-hidden="true">' + heroeSVG() + '</div>';
     $('mapa').innerHTML = h;
-    $('mapa-resumen').innerHTML = '<span>⭐ Mundos con nivel 6: ' + listos + '/5</span><span>🪙 ' + sum + '/50</span><span><button type="button" class="chip-med btn suave" id="btn-medallas" aria-label="Ver mis medallas">🏅 ' + Object.keys(medallasAlumno()).length + '/' + MEDALLAS.length + '</button></span><span>' + (jf.vencido ? '👑 Jefe vencido' : (jf.abierto ? '🏰 Jefe abierto' : '🔒 Jefe cerrado')) + '</span>';
+    $('mapa-resumen').innerHTML = '<span>⭐ Mundos con nivel 6: ' + listos + '/5</span><span>🪙 ' + sum + '/50</span><span><button type="button" class="chip-med btn suave" id="btn-medallas" aria-label="Abrir mi sala de trofeos">🏆 Trofeos · 🏅 ' + Object.keys(medallasAlumno()).length + '/' + MEDALLAS.length + '</button></span><span>' + (jf.vencido ? '👑 Jefe vencido' : (jf.abierto ? '🏰 Jefe abierto' : '🔒 Jefe cerrado')) + '</span>';
     $('mapa-sub').textContent = 'Elige un mundo para entrenar. Con nivel 6 o más en los 5 mundos se abre el castillo del Jefe Final.';
     if (jf.abierto) $('mapa-faltan').innerHTML = jf.vencido ? '👑 ¡Has vencido a Lord Negativo! Puedes volver a enfrentarte a él cuando quieras.' : '🏰 <b>¡Los 5 mundos superados!</b> El castillo está abierto: toca el castillo para enfrentarte a Lord Negativo.';
     else $('mapa-faltan').innerHTML = 'Para abrir el castillo te falta: ' + jf.faltan.map(function (f) { return '<b>Mundo ' + f.tema + '</b> (' + (f.nivel ? 'nivel ' + f.nivel + ' de 6' : 'sin empezar') + ')'; }).join(', ') + '.';
+    var gu = $('mapa-guarda');
+    if (esIOS() && !esApp()) { gu.hidden = false; gu.innerHTML = '📲 Para no perder tu progreso: pulsa <b>Compartir → «Añadir a pantalla de inicio»</b> y abre siempre el juego desde ese icono. Y haz una 💾 copia de seguridad en la Sala de trofeos.'; } else gu.hidden = true;
     UI.mostrar('p-menu');
   };
   // toque en el castillo
@@ -2691,7 +2826,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         : '<div class="res-pos">¡Sin fallos que repasar en esta sesión! 🎯</div>';
       h += '<div class="res-codigo">Código de resultado (apúntalo o haz una captura)<br><code id="codigo">' + r.codigo + '</code></div><div class="res-aviso" id="res-aviso" role="status"></div>';
     }
-    h += '<div class="res-botones"><button class="btn verde grande" id="r-otra" type="button">🔁 Seguir con este tema</button><button class="btn" id="r-modo" type="button">📚 Cambiar de tema</button>' +
+    h += '<div class="res-botones"><button class="btn verde grande" id="r-otra" type="button">🔁 Seguir con este tema</button><button class="btn" id="r-modo" type="button">📚 Cambiar de tema</button><button class="btn" id="r-copia" type="button">💾 Copia de seguridad</button>' +
       (R.vacia ? '' : '<button class="btn" id="r-enviar" type="button">✉️ Enviar a mi profesor</button>') + '<button class="btn suave" id="r-alumno" type="button">👤 Cambiar alumno</button></div></div></div>';
     $('p-result').innerHTML = h;
     UI.mostrar('p-result');
@@ -2849,8 +2984,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
           cuerpo.innerHTML = '<p>' + ps.length + ' partida(s) guardada(s) en este dispositivo.</p>' +
             '<div class="seccion"><h3>Para Excel / hoja de cálculo</h3><div class="modal-botones" style="justify-content:flex-start"><button class="btn verde" type="button" id="pp-csv">⬇ Descargar CSV</button>' +
             '<button class="btn" type="button" id="pp-resumen">📋 Copiar resumen (Excel)</button><button class="btn" type="button" id="pp-tsv">📋 Copiar partidas (Excel)</button><button class="btn" type="button" id="pp-ver">👁 Mostrar CSV</button></div></div>' +
-            '<div class="seccion"><h3>Juntar varios iPads</h3><p>En cada iPad pulsa «Exportar todas las partidas», copia el texto y pégalo aquí, en tu iPad, en «Importar» (no se duplican).</p>' +
-            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-exp">📤 Exportar todas las partidas</button></div>' +
+            '<div class="seccion"><h3>Juntar varios iPads y copias de seguridad</h3><p>En cada iPad pulsa «Exportar todas las partidas» (solo sesiones) o «Copia completa» (también niveles y medallas), copia el texto y pégalo en «Importar» (no se duplica nada y no se pisa lo más reciente).</p>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-exp">📤 Exportar todas las partidas</button><button class="btn" type="button" id="pp-copia">💾 Copia completa (niveles, medallas y partidas)</button></div>' +
             '<textarea class="csv" id="pp-imp" placeholder="Pega aquí el texto exportado de otro iPad (puedes pegar varios, uno por línea)" aria-label="Texto exportado para importar" style="min-height:90px"></textarea>' +
             '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-impgo">📥 Importar</button></div></div>' +
             '<div class="seccion"><div class="modal-botones" style="justify-content:flex-start"><button class="btn rojo" type="button" id="pp-borrar">🗑 Borrar datos</button></div></div>' +
@@ -2894,10 +3029,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         } else if (b.id === 'pp-resumen') copiar(resumenTSV(), 'Resumen copiado: pégalo en Excel.');
         else if (b.id === 'pp-tsv') copiar(tablaPartidas('\t'), 'Partidas copiadas: pégalas en Excel.');
         else if (b.id === 'pp-ver') mostrarArea(csvTexto(), 'Texto CSV:');
+        else if (b.id === 'pp-copia') { var cp = copiaDatos(null); mostrarArea(cp, 'Copia completa de este dispositivo. Guárdala en un lugar seguro:'); copiar(cp, 'Copia completa copiada.'); }
         else if (b.id === 'pp-exp') { var ex = exportarTodo(); mostrarArea(ex, 'Copia este texto y pégalo en «Importar» del iPad del profesor:'); copiar(ex, 'Texto copiado.'); }
         else if (b.id === 'pp-impgo') {
-          var r = importarTodo($('pp-imp').value);
-          aviso('Importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
+          var r = restaurarCopia($('pp-imp').value);
+          aviso('Progreso restaurado: ' + r.prog + ' · sesiones importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
         } else if (b.id === 'pp-borrar') {
           Modal.abrir('<h2>¿Borrar todos los datos?</h2><p>Se eliminarán todas las partidas y la clasificación de este dispositivo. <b>No se puede deshacer.</b></p><p>Antes de borrar, te conviene descargar el CSV o exportar las partidas.</p>',
             [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Exportar antes', fn: function () { Modal.panel('exportar'); } }, { t: 'Sí, borrar todo', cls: 'rojo', id: 'borrar-si', fn: function () { Almacen.borrar(); Modal.panel('exportar'); } }],
@@ -2906,9 +3042,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
           var res = decodificarVarios($('dec-in').value), out = $('dec-out');
           if (!res.length) { out.innerHTML = '<p class="aviso-mal">No hay ningún código que decodificar.</p>'; return; }
           var okN = res.filter(function (o) { return o.ok && !o.dup; }).length;
-          var h = '<p class="aviso-ok" role="status">' + okN + ' código(s) correcto(s) de ' + res.length + '.</p><table class="tabla"><thead><tr><th>Lista</th><th>Modo</th><th>Aciertos</th><th>Errores</th><th>Puntos</th><th>Ranking</th><th>Fecha</th><th>Hora</th><th>Estado</th></tr></thead><tbody>';
+          var h = '<p class="aviso-ok" role="status">' + okN + ' código(s) correcto(s) de ' + res.length + '.</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº</th><th>Sesión</th><th>Aciertos</th><th>Errores</th><th>Nivel</th><th>Fecha</th><th>Hora</th><th>Estado</th></tr></thead><tbody>';
           res.forEach(function (o) {
-            h += o.ok ? '<tr><td>' + o.lista + '</td><td>' + (o.modo === 'CR' ? 'Contrarreloj' : 'Rey') + '</td><td>' + o.aciertos + '</td><td>' + o.errores + '</td><td>' + o.puntos + '</td><td>' + o.valorRank + '</td><td>' + o.fecha + '</td><td>' + o.hora + '</td><td>' + (o.dup ? 'duplicado' : 'correcto') + '</td></tr>'
+            h += o.ok ? '<tr><td>' + (etqGrupo(o.grupo) || '—') + '</td><td>' + o.lista + '</td><td>' + (o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : '')) + '</td><td>' + o.aciertos + '</td><td>' + o.errores + '</td><td>' + (o.tema ? fmt1(o.nivel) : '—') + '</td><td>' + o.fecha + '</td><td>' + o.hora + '</td><td>' + (o.dup ? 'duplicado' : 'correcto') + '</td></tr>'
               : '<tr><td colspan="8">' + esc(o.codigo) + '</td><td class="aviso-mal">' + esc(o.error) + '</td></tr>';
           });
           out.innerHTML = h + '</tbody></table><div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="dec-copiar">📋 Copiar tabla (Excel)</button><button class="btn" type="button" id="dec-csv">⬇ Descargar CSV</button></div><div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
@@ -2959,7 +3095,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     Teclado.crear($('tec-lista'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
     Teclado.crear($('tec-juego'), { signo: true, fila: '<button type="button" class="tecla nose" data-k="nose">No sé</button><button type="button" class="tecla ok" data-k="ok" aria-label="Comprobar">✔ Comprobar</button>' });
     // estrella y luces del árbol de la escena de inicio encendidas
-    $('mapa-resumen').addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#btn-medallas')) { Sonido.despertar(); UI.abrirMedallas(); } });
+    $('mapa-resumen').addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#btn-medallas')) { Sonido.despertar(); UI.irTrofeos(); } });
     $('mapa').addEventListener('click', function (e) {
       var j = e.target.closest ? e.target.closest('button[data-jefe]') : null;
       if (j) { Sonido.despertar(); UI.abrirJefe(); return; }
@@ -2968,6 +3104,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     });
     $('btn-ayuda').addEventListener('click', Modal.ayuda);
     $('btn-cambiar').addEventListener('click', UI.irLista);
+    $('tro-volver').addEventListener('click', function () { UI.irMenu(); });
+    $('tro-copia').addEventListener('click', function () { Sonido.despertar(); UI.abrirCopia(); });
+    $('curso-recuperar').addEventListener('click', function () { Sonido.despertar(); UI.abrirRecuperar(); });
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* sin API */ }
     $('btn-curso').addEventListener('click', function () { Sonido.despertar(); UI.irCurso(); });
     $('p-curso').addEventListener('click', function (ev) {
       var b = ev.target.closest ? ev.target.closest('button') : null; if (!b) return;
@@ -2983,6 +3123,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var b = e.target.closest('button'); if (!b) return; Sonido.despertar();
       if (b.id === 'r-otra') { if (ultimoResultado.rec.modo === 'JF') iniciar('JF', alumnoActual); else iniciar('RP', alumnoActual, ultimoResultado.rec.tema); }
       else if (b.id === 'r-modo') UI.irMenu();
+      else if (b.id === 'r-copia') UI.abrirCopia();
       else if (b.id === 'r-alumno') UI.irLista();
       else if (b.id === 'r-enviar') UI.enviar();
     });
