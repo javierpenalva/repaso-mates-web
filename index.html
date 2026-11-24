@@ -311,6 +311,61 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
   #modal-caja{padding:12px 14px;gap:6px}#modal-caja h2{font-size:22px}#modal-caja p,#modal-caja li{font-size:15px}
   .medalla{font-size:40px}.res-grid{gap:6px;margin:4px auto}.dato b{font-size:22px}.dato span{font-size:12px}
 }
+
+/* ---------- MAPA DE MUNDOS (portada) ---------- */
+.mapa-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;max-width:1040px}
+.mapa-cab .titulo{margin:0}
+.mapa-resumen{display:flex;gap:8px;flex-wrap:wrap;font-weight:800;font-size:clamp(14px,2vmin,18px)}
+.mapa-resumen span{background:rgba(0,0,0,.35);border:2px solid var(--tiza2);border-radius:999px;padding:5px 12px;white-space:nowrap}
+.mapa{position:relative;width:100%;max-width:1040px;aspect-ratio:5/3;border-radius:22px;overflow:hidden;border:4px solid var(--tiza);
+  background:linear-gradient(180deg,#5cc8ff 0%,#a8e6ff 52%,#7bd36b 52.2%,#4fae4a 100%);box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.mapa svg.fondo{position:absolute;inset:0;width:100%;height:100%}
+.nodo{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:0;padding:0;color:#10322c;width:clamp(96px,17%,170px);text-align:center}
+.nodo .disco{width:clamp(54px,7.6vw,84px);height:clamp(54px,7.6vw,84px);border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:clamp(18px,2.6vw,30px);background:#fff;border:5px solid #8a6a3a;box-shadow:0 5px 0 rgba(0,0,0,.3);position:relative;color:#10322c}
+.nodo:active .disco{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.nodo .num{position:absolute;top:-8px;left:-8px;width:26px;height:26px;border-radius:50%;background:#10322c;color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+.nodo .nombre{font-size:clamp(11px,1.5vw,16px);font-weight:900;line-height:1.1;background:rgba(255,255,255,.85);border-radius:8px;padding:2px 6px}
+.nodo .nivel{font-size:clamp(10px,1.35vw,14px);font-weight:800;background:rgba(16,50,44,.88);color:#fff;border-radius:8px;padding:2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.segs{display:flex;gap:2px}.segs i{width:clamp(5px,.9vw,9px);height:8px;border-radius:2px;background:#5b7a72;display:block}
+.segs i.on{background:#ffd23f}.segs i.meta{outline:2px solid #fff;outline-offset:0}.segs i.on.meta{background:#52e07a}
+.nodo.n0 .disco{border-color:#8a6a3a}.nodo.n1 .disco{border-color:#e0a21b}.nodo.n2 .disco{border-color:#2fbf5b;background:#e8ffee}
+.nodo.n2 .disco::after{content:"★";position:absolute;right:-10px;top:-12px;font-size:clamp(20px,2.6vw,30px);color:#ffd23f;text-shadow:0 2px 0 #10322c,0 0 6px #fff}
+.nodo.sugerido .disco{animation:pulso 1.4s ease-in-out infinite}
+@keyframes pulso{0%,100%{box-shadow:0 5px 0 rgba(0,0,0,.3),0 0 0 0 rgba(255,226,122,.9)}50%{box-shadow:0 5px 0 rgba(0,0,0,.3),0 0 0 14px rgba(255,226,122,0)}}
+.nodo.castillo .disco{background:#3a2a52;border-color:#c0392b;color:#fff;font-size:clamp(26px,3.6vw,44px);border-radius:16px}
+.nodo.castillo.bloq .disco{filter:grayscale(.85) brightness(.8);border-color:#555}
+.nodo.castillo.abierto .disco{border-color:#ffd23f;animation:pulso 1.2s ease-in-out infinite}
+.nodo.castillo.vencido .disco{border-color:#ffd23f;background:#5a3a8a}
+.heroe{position:absolute;left:var(--x);top:var(--y);width:clamp(30px,4vw,50px);transform:translate(-50%,-195%);pointer-events:none;animation:salto 1s ease-in-out infinite;z-index:3}
+@keyframes salto{0%,100%{transform:translate(-50%,-195%)}50%{transform:translate(-50%,-235%)}}
+.mapa-faltan{width:100%;max-width:1040px;font-size:clamp(14px,2vmin,18px);font-weight:700;text-align:center;background:rgba(0,0,0,.35);border:2px dashed var(--tiza2);border-radius:14px;padding:8px 12px}
+.mapa-faltan b{color:var(--acento)}
+@media (orientation:portrait) and (min-width:640px){.mapa{aspect-ratio:4/3}}
+@media (max-width:639px),(max-height:520px){
+  .mapa{aspect-ratio:auto;display:flex;flex-direction:column;gap:10px;padding:12px;background:linear-gradient(180deg,#7bd36b,#4fae4a)}
+  .mapa svg.fondo,.heroe{display:none}
+  .nodo{position:static;transform:none;flex-direction:row;width:100%;gap:10px;text-align:left;background:rgba(255,255,255,.9);border-radius:16px;padding:8px 10px}
+  .nodo .nombre{background:none;flex:1;font-size:15px}.nodo .nivel{background:none;color:#10322c;font-size:12px;align-items:flex-start}
+  .nodo .disco{width:54px;height:54px;font-size:20px;flex:0 0 auto}
+}
+@media (min-width:640px) and (max-height:520px){.mapa{flex-direction:row;flex-wrap:wrap}.nodo{width:calc(33.3% - 7px)}}
+.mapa{flex-shrink:0}
+/* ---------- JEFE FINAL ---------- */
+.deco-jefe{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;max-height:100%}
+.jefe-svg{width:100%;max-width:min(230px,26vh);height:auto;display:block;margin:0 auto}
+.jefe-svg.golpe{animation:golpe .45s}.jefe-svg.rie{animation:ríe .6s}
+@keyframes golpe{0%{transform:translateX(0);filter:none}20%{transform:translateX(-9px) rotate(-3deg);filter:brightness(2.2)}50%{transform:translateX(9px) rotate(3deg)}100%{transform:none}}
+@keyframes ríe{0%,100%{transform:translateY(0)}25%{transform:translateY(-8px) scale(1.04)}50%{transform:translateY(0)}75%{transform:translateY(-6px) scale(1.03)}}
+.corazones{letter-spacing:2px;font-size:20px}
+.boss-barra{width:100%;max-width:230px;height:14px;border-radius:8px;background:#40202a;border:2px solid #fff;margin:6px auto 0;overflow:hidden}
+.boss-barra i{display:block;height:100%;background:linear-gradient(90deg,#ff4d4d,#ffd23f);transition:width .4s}
+.boss-nombre{text-align:center;font-weight:900;letter-spacing:1px;margin-top:4px;color:#ffb3b3;font-size:15px}
+.refuerzo,.leccion{margin-top:8px}
+body.jefe{background:radial-gradient(ellipse at 50% 10%,#4b2b6b 0%,#241438 60%,#120a1f 100%) fixed}
+body.jefe .tarjeta .cat{color:#7b1fa2}
+.vidas-fin{font-size:34px;letter-spacing:4px;text-align:center}
 </style>
 </head>
 <body>
@@ -341,25 +396,29 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
       </div>
     </section>
 
-    <!-- 2. ELEGIR TEMA (obligatorio) -->
-    <section id="p-menu" class="pantalla scroll" aria-label="Elegir tema">
-      <h1 class="titulo" id="saludo">¡Hola!</h1>
-      <p class="sub">¿Qué quieres repasar hoy? <b>Elige un tema</b> para empezar</p>
-      <div class="modos temas" id="temas"></div>
+    <!-- 2. MAPA DE MUNDOS (elegir tema obligatorio) -->
+    <section id="p-menu" class="pantalla scroll" aria-label="Mapa de mundos">
+      <div class="mapa-cab">
+        <h1 class="titulo" id="saludo">¡Hola!</h1>
+        <div class="mapa-resumen" id="mapa-resumen" role="status"></div>
+      </div>
+      <p class="sub" id="mapa-sub">Elige un mundo para entrenar.</p>
+      <div class="mapa" id="mapa"></div>
+      <div class="mapa-faltan" id="mapa-faltan" role="status"></div>
       <div class="fila-botones">
         <button class="btn" id="btn-ayuda" type="button">❓ Cómo funciona</button>
         <button class="btn suave" id="btn-cambiar" type="button">🔁 Cambiar alumno</button>
       </div>
-      <div class="escena" id="escena-menu" aria-hidden="true" style="margin-top:10px"></div>
+      <div class="escena" id="escena-menu" aria-hidden="true" hidden></div>
     </section>
 
     <!-- 3. JUEGO -->
     <section id="p-juego" class="pantalla" aria-label="Partida">
       <div class="hud" id="hud">
-        <div class="celda"><small>Aciertos</small><b id="h-puntos">0</b></div>
+        <div class="celda"><small id="h-puntos-t">Aciertos</small><b id="h-puntos">0</b></div>
         <div class="celda"><small>Racha</small><b id="h-racha">0</b></div>
         <div class="celda reloj" id="h-modo-celda"><small id="h-modo-t">Tema</small><b id="h-modo">+ −</b><span class="pen-anim" id="h-pen" aria-hidden="true"></span></div>
-        <div class="celda"><small>Nivel</small><b id="h-niv-t">1 de 10</b><div class="barranivel" aria-hidden="true"><i id="h-niv"></i></div></div>
+        <div class="celda"><small id="h-niv-l">Nivel</small><b id="h-niv-t">1 de 10</b><div class="barranivel" aria-hidden="true"><i id="h-niv"></i></div></div>
       </div>
       <div class="barra-global" id="barra-global" aria-hidden="true"><i id="bg-i"></i></div>
       <div class="cuerpo">
@@ -1466,6 +1525,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     acierto: function () { this.tono(660, 0, 0.12, 'sine', 0.16); this.tono(880, 0.1, 0.2, 'sine', 0.16); this.tono(1320, 0.2, 0.25, 'sine', 0.08); },
     error: function () { this.tono(220, 0, 0.18, 'sawtooth', 0.08); this.tono(165, 0.15, 0.3, 'sawtooth', 0.08); },
     fin: function () { var n = [523, 659, 784, 1047]; for (var i = 0; i < n.length; i++) this.tono(n[i], i * 0.14, 0.3, 'triangle', 0.15); },
+    jefe: function () { var n = [392, 523, 659, 784, 1047, 1319]; for (var i = 0; i < n.length; i++) this.tono(n[i], i * 0.12, 0.35, 'square', 0.07); },
+    golpe: function () { this.tono(180, 0, 0.1, 'square', 0.1); this.tono(760, 0.05, 0.18, 'triangle', 0.12); },
+    derrota: function () { this.tono(330, 0, 0.3, 'sawtooth', 0.09); this.tono(262, 0.28, 0.3, 'sawtooth', 0.09); this.tono(196, 0.56, 0.6, 'sawtooth', 0.09); },
     campana: function () { this.tono(1568, 0, 0.6, 'sine', 0.1); this.tono(2093, 0.05, 0.6, 'sine', 0.07); }
   };
 
@@ -1494,6 +1556,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var s = String(m).toLowerCase();
     if (s === 'cr' || s === 'contrarreloj' || s === '1') return 'CR';
     if (s === 'rp' || s === 'repaso' || s === '3') return 'RP';
+    if (s === 'jf' || s === 'jefe' || s === 'jefe final' || s === '4') return 'JF';
     if (s === 'rm' || s === 'rey' || s === 'rey de las mates' || s === 'el rey de las mates' || s === '2') return 'RM';
     return null;
   }
@@ -1505,6 +1568,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   var PERFILES = {
     CR: { prior: [[1.6, 1.8], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]], primer: 1, objetivo: Bayes.OBJETIVO, todas: false },
     RM: { prior: [[4.5, 2.0], [4.5, 2.0], [4.5, 2.0], [4.5, 2.0]], primer: 4, objetivo: 0.6, todas: true },
+    JF: { prior: [[6, 1.5]], primer: 6, objetivo: 0.7, todas: false },       // jefe final: 20 preguntas mezcladas de nivel 6-8
     RP: { prior: [[1.5, 1.8]], primer: 1, objetivo: 0.68, todas: false }   // repaso: UN tema; se ajusta con el progreso guardado
   };
   var TEMAS_NOMBRE = ['', 'Sumas y restas sin paréntesis', 'Sumas y restas con paréntesis', 'Multiplicaciones y divisiones', 'Potencias sencillas', 'Operaciones combinadas'];
@@ -1530,7 +1594,20 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       cola: [], recientes: [], q: null, hist: [], luces: 0, regalos: 0, flash: false,
       esperando: false, lectura: false, terminada: false, finPendiente: false, maxNivelAcertado: 0, codigo: null, ultimoRes: null
     };
+    if (modo === 'JF') {                                         // jefe final: 5 vidas y 20 preguntas (4 de cada tema, mezcladas)
+      J.vidas = 5; J.total = 20; J.orden = [];
+      for (var tt = 1; tt <= 5; tt++) for (var kk = 0; kk < 4; kk++) J.orden.push(tt);
+      for (var ii = J.orden.length - 1; ii > 0; ii--) { var jj = Math.floor(RNG.next() * (ii + 1)), tmp = J.orden[ii]; J.orden[ii] = J.orden[jj]; J.orden[jj] = tmp; }
+    }
     return J;
+  }
+  // estado del jefe final de un alumno: se abre al llegar a nivel 6 en los 5 temas
+  function nivelTema(lista, t) { var pr = Almacen.prog(lista, t); return pr ? Math.floor(clamp(pr.theta, 1, 10)) : 0; }
+  function jefeEstado(lista) {
+    var faltan = [], t, n;
+    for (t = 1; t <= 5; t++) { n = nivelTema(lista, t); if (n < 6) faltan.push({ tema: t, nivel: n }); }
+    var jp = Almacen.prog(lista, 'J') || {};
+    return { abierto: faltan.length === 0, faltan: faltan, vencido: !!jp.vencido, intentos: jp.intentos || 0, mejor: jp.mejor || 0 };
   }
   function catActiva(c) { return !!(J && J.desbloq[c]); }
   function condDesbloqueo(c) {                      // ¿está la categoría c suficientemente dominada para abrir la siguiente?
@@ -1605,8 +1682,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     return { cat: 0, nivel: nivel };
   }
   function siguientePregunta() {
-    var s = J.modo === 'RP' ? elegirSiguienteRP() : elegirSiguiente();
-    var q = J.modo === 'RP' ? Generador.generarTema(J.tema, s.nivel, { evitar: J.recientes }) : Generador.generar(s.cat + 1, s.nivel, { evitar: J.recientes });
+    var q;
+    if (J.modo === 'JF') {
+      J.tema = J.orden[J.respondidas];
+      q = Generador.generarTema(J.tema, 6 + Math.floor(J.respondidas / 7), { evitar: J.recientes });      // niveles 6, 7 y 8
+    } else {
+      var s = J.modo === 'RP' ? elegirSiguienteRP() : elegirSiguiente();
+      q = J.modo === 'RP' ? Generador.generarTema(J.tema, s.nivel, { evitar: J.recientes }) : Generador.generar(s.cat + 1, s.nivel, { evitar: J.recientes });
+    }
     J.q = q; J.qT = 0;
     J.recientes.push(q.p); if (J.recientes.length > 6) J.recientes.shift();
     J.esperando = false; J.lectura = false;
@@ -1620,7 +1703,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var n = parseInt(s, 10); return n === 0 ? 0 : n;
   }
   function procesar(valor, segOv) {
-    var q = J.q, c = J.modo === 'RP' ? 0 : q.cat - 1, d = q.nivel;
+    var q = J.q, c = (J.modo === 'RP' || J.modo === 'JF') ? 0 : q.cat - 1, d = q.nivel;
     var t = (segOv !== undefined && segOv !== null) ? Number(segOv) : J.qT / 1000;
     t = isFinite(t) ? clamp(t, 0, 600) : 600;                        // cotas sobre el tiempo de respuesta
     var num = parseValor(valor);
@@ -1659,7 +1742,13 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     J.n[c]++; J.ultimoNivel[c] = d; J.ultimoGlobal = d; J.ultimaCat = c;
     J.recCat[c].push(tipo === 'acierto'); if (J.recCat[c].length > 8) J.recCat[c].shift();
     J.respondidas++; J.sumT += t;
-    J.hist.push({ cat: q.cat, nivel: d, tipo: tipo, t: t, texto: q.p, valor: q.valor, resp: num });
+    J.hist.push({ tema: q.tema, cat: q.cat, nivel: d, tipo: tipo, t: t, texto: q.p, valor: q.valor, resp: num });
+    if (J.modo === 'JF') {
+      if (tipo !== 'acierto' && q.regla) J.fallos[q.regla] = (J.fallos[q.regla] || 0) + 1;
+      if (tipo !== 'acierto') J.vidas--; else res.golpe = true;
+      res.vidas = J.vidas; res.restantes = J.total - J.respondidas;
+      if (J.vidas <= 0 || J.respondidas >= J.total) { J.finPendiente = true; res.final = J.vidas > 0 ? 'victoria' : 'derrota'; }
+    }
     if (J.modo === 'RP') {
       // refuerzo: 4 de las últimas 6 falladas (con al menos 5 respondidas) => baja, repasa la regla y repite hasta acertar 3 seguidas
       J.ventana.push(tipo === 'acierto' ? 1 : 0); if (J.ventana.length > 6) J.ventana.shift();
@@ -1726,12 +1815,13 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   }
   function decodificarUno(txt) {
     var s = String(txt).replace(/\s+/g, '').toUpperCase();
-    var m = /^L(\d{1,2})-(CR|RM|RP[1-5])-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
+    var m = /^L(\d{1,2})-(CR|RM|RP[1-5]|JF)-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
     if (!m) return { ok: false, codigo: String(txt).trim(), error: 'formato no válido' };
     var base = s.slice(0, s.lastIndexOf('-'));
     var o = { ok: true, codigo: s, lista: parseInt(m[1], 10), modo: m[2], aciertos: parseInt(m[3], 10), errores: parseInt(m[4], 10), puntos: parseInt(m[5], 10),
       fecha: '20' + m[6].slice(0, 2) + '-' + m[6].slice(2, 4) + '-' + m[6].slice(4, 6), hora: m[7].slice(0, 2) + ':' + m[7].slice(2, 4), control: m[8] };
     if (o.modo.charAt(0) === 'R' && o.modo.charAt(1) === 'P') { o.tema = parseInt(o.modo.charAt(2), 10); o.nivel = o.puntos / 10; o.puntos = 0; }
+    if (o.modo === 'JF') o.victoria = o.puntos === 1;
     o.valorRank = o.modo === 'CR' ? o.aciertos - CFG.ERR_PESO_RANK * o.errores : o.puntos;
     if (chkCodigo(base) !== m[8]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
     else if (o.lista < 1 || o.lista > LISTA_MAX) { o.ok = false; o.error = 'número de lista fuera de rango'; }
@@ -1753,7 +1843,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function tablaDecodificada(res, sep) {
     var cab = ['lista', 'tema', 'aciertos', 'errores', 'nivel', 'fecha', 'hora', 'estado', 'codigo'];
     var f = res.map(function (o) {
-      return o.ok ? [o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
+      return o.ok ? [o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : ''), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
         : ['', '', '', '', '', '', '', 'ERROR: ' + o.error, o.codigo];
     });
     return [filaTSV(cab, sep)].concat(f.map(function (r) { return filaTSV(r, sep); })).join(sep === ';' ? '\r\n' : '\n');
@@ -1783,7 +1873,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function exportarTodo() {
     var filas = Almacen.partidas().map(function (p) {
       var n = p.niveles || {}, f = function (x) { return x === null || x === undefined ? -1 : x; };
-      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]);   // repaso: tema, nivel inicial, refuerzos
+      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]);   // repaso: tema, nivel inicial, refuerzos
     });
     var carga = b64enc(JSON.stringify(filas));
     return 'MN1:' + carga + ':' + b32(hash32('mn-export|' + carga), 6);
@@ -1798,13 +1888,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var filas; try { filas = JSON.parse(b64dec(parts[1])); } catch (e) { r.invalidas++; return; }
       if (!Array.isArray(filas)) { r.invalidas++; return; }
       filas.forEach(function (f) {
-        if (!Array.isArray(f) || f.length < 16 || !(f[0] >= 1 && f[0] <= LISTA_MAX) || f[1] !== 'RP' || !(f[12] >= 1 && f[12] <= 5)) { r.invalidas++; return; }
+        if (!Array.isArray(f) || f.length < 16 || !(f[0] >= 1 && f[0] <= LISTA_MAX) || !((f[1] === 'RP' && f[12] >= 1 && f[12] <= 5) || (f[1] === 'JF' && f[12] === 0))) { r.invalidas++; return; }
         var k = f[0] + '|' + f[1] + '|' + f[2];
         if (claves[k]) { r.duplicadas++; return; }
         claves[k] = true;
         var d = new Date(f[2]), tot = f[4] + f[5] + f[6], g = function (x) { return x < 0 ? null : x; };
-        var rec = { lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
-          tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[14], importada: true };
+        var rec = { lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: f[1] === 'JF' ? (f[15] === 1 ? 1 : 0) : 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
+          tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[1] === 'RP' ? f[14] : 0, importada: true };
+        if (f[1] === 'JF') rec.vidas = f[14];
         rec.codigo = armarCodigo(rec, d);
         Almacen.mem.partidas.push(rec); r.anadidas++;
       });
@@ -1851,6 +1942,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     limpiarTimers();
     var ahora = new Date();
     if (J.modo === 'RP') { finalizarRP(ahora); return; }
+    if (J.modo === 'JF') { finalizarJF(ahora); return; }
     var previas = Almacen.partidas().filter(function (x) { return x.modo === J.modo && valida(x); });
     var mejorTodos = previas.length ? previas.reduce(function (m, x) { return Math.max(m, Puntuacion.rank(x)); }, -Infinity) : null;
     var propias = previas.filter(function (x) { return x.lista === J.lista; });
@@ -1903,10 +1995,33 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     ultimoResultado = { rec: rec, rp: true, vacia: J.respondidas === 0, reglas: reglas, nivel: th };
     if (UI.listo) UI.mostrarResultados();
   }
-  function iniciar(modo, lista, tema) {
+  // Jefe final: fin del combate (victoria = sobrevivir a las 20 preguntas con al menos 1 vida)
+  function finalizarJF(ahora) {
+    var tot = J.aciertos + J.errores + J.blancos, victoria = J.vidas > 0 && J.respondidas >= J.total;
+    var rec = {
+      lista: J.lista, modo: 'JF', tema: 0, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      puntos: victoria ? 1 : 0, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
+      precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
+      tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
+      nivel: 7, nivelIni: 6, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, vidas: J.vidas
+    };
+    rec.codigo = armarCodigo(rec, ahora);
+    J.codigo = rec.codigo;
+    Almacen.anadir(rec);
+    var jp = Almacen.prog(J.lista, 'J') || {};
+    var primera = victoria && !jp.vencido;
+    Almacen.setProg(J.lista, 'J', { vencido: !!jp.vencido || victoria, mejor: Math.max(jp.mejor || 0, victoria ? J.aciertos : 0), intentos: (jp.intentos || 0) + 1, ts: ahora.getTime() });
+    var reglas = Object.keys(J.fallos).sort(function (a, b) { return J.fallos[b] - J.fallos[a]; }).slice(0, 3);
+    var ft = {}; J.hist.forEach(function (h) { if (h.tipo !== 'acierto') ft[h.tema] = (ft[h.tema] || 0) + 1; });
+    var flojos = Object.keys(ft).sort(function (a, b) { return ft[b] - ft[a]; }).map(Number);
+    ultimoResultado = { rec: rec, jf: true, victoria: victoria, vidas: J.vidas, primera: primera, reglas: reglas, flojos: flojos };
+    if (UI.listo) UI.mostrarResultados();
+  }
+  function iniciar(modo, lista, tema, forzar) {
     var m = normModo(modo), l = parseInt(lista, 10), t = parseInt(tema, 10);
     if (!m || !(l >= 1 && l <= LISTA_MAX)) return false;
     if (m === 'RP' && !(t >= 1 && t <= 5)) return false;       // en el repaso es obligatorio elegir tema
+    if (m === 'JF' && !jefeEstado(l).abierto && !(TEST && forzar)) return false;   // el jefe solo se abre con nivel 6 en los 5 temas
     limpiarTimers();
     alumnoActual = l;
     nuevaPartida(m, l, t);
@@ -1952,26 +2067,27 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   }
 
   /* ---- CSV / TSV ---- */
-  function nombreModo(m) { return m === 'CR' ? 'Contrarreloj' : (m === 'RM' ? 'Rey de las mates' : 'Repaso'); }
+  function nombreModo(m) { return m === 'CR' ? 'Contrarreloj' : (m === 'RM' ? 'Rey de las mates' : (m === 'JF' ? 'Jefe Final' : 'Repaso')); }
+  function nombreSesion(p) { return p.modo === 'JF' ? 'Jefe Final (' + (p.puntos === 1 ? 'victoria' : 'derrota') + ')' : (nombreTema(p.tema) || nombreModo(p.modo)); }
   function nombreTema(t) { return TEMAS_NOMBRE[t] || ''; }
   function fn(x) { return x === null || x === undefined ? '' : String(x).replace('.', ','); }
   function tablaPartidas(sep) {
     var cab = ['lista', 'tema', 'fecha_hora', 'preguntas', 'aciertos', 'errores', 'en_blanco', 'precision_pct', 'nivel_inicial', 'nivel_final', 'nivel_max_acertado', 'racha_max', 'refuerzos', 'tiempo_s', 'tiempo_medio_s', 'codigo'];
     var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
     var filas = ps.map(function (p) {
-      return filaTSV([p.lista, nombreTema(p.tema) || nombreModo(p.modo), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
+      return filaTSV([p.lista, nombreSesion(p), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
     });
     return [filaTSV(cab, sep)].concat(filas).join(sep === ';' ? '\r\n' : '\n');
   }
   function csvTexto() { return tablaPartidas(';'); }
   // una fila por alumno y tema: sesiones, preguntas, precisión media, nivel actual y última sesión
   function resumenTSV() {
-    var ps = Almacen.partidas().filter(function (p) { return p.modo === 'RP'; }), por = {};
-    ps.forEach(function (p) { var k = p.lista + '|' + p.tema; (por[k] = por[k] || []).push(p); });
+    var ps = Almacen.partidas().filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; }), por = {};
+    ps.forEach(function (p) { var k = p.lista + '|' + (p.modo === 'JF' ? 9 : p.tema); (por[k] = por[k] || []).push(p); });
     var cab = ['lista', 'tema', 'sesiones', 'preguntas', 'precision_media_pct', 'nivel_actual', 'ultima_sesion'];
     var f = Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return (x[0] - y[0]) || (x[1] - y[1]); }).map(function (k) {
       var l = por[k].sort(function (a, b) { return a.ts - b.ts; }), pre = l.reduce(function (s, p) { return s + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s, p) { return s + p.aciertos; }, 0);
-      return filaTSV([l[0].lista, nombreTema(l[0].tema), l.length, pre, pre ? Math.round(100 * ac / pre) : 0, fn(l[l.length - 1].nivel), l[l.length - 1].fecha], '\t');
+      return filaTSV([l[0].lista, l[0].modo === 'JF' ? 'Jefe Final (' + l.filter(function (p) { return p.puntos === 1; }).length + ' victoria/s)' : nombreTema(l[0].tema), l.length, pre, pre ? Math.round(100 * ac / pre) : 0, fn(l[l.length - 1].nivel), l[l.length - 1].fecha], '\t');
     });
     return [filaTSV(cab, '\t')].concat(f).join('\n');
   }
@@ -1985,6 +2101,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     semilla: function (n) { RNG.sembrar(n); },
     generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
     generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
+    jefeEstado: jefeEstado,
+    progreso: function (l, t) { return Almacen.prog(l, t); },
+    fijarProgreso: function (l, t, theta) { Almacen.setProg(l, t, { theta: theta, n: 20, ts: Date.now() }); },
     evaluar: function (expr) { return Evaluador.evaluar(expr); },
     evaluarDetallado: function (expr) { return Evaluador.detallado(expr); },
     parsear: Evaluador.parsear, valorArbol: Evaluador.valor, redibujar: function (t) { return Explicar.render(Evaluador.parsear(t), 'first'); }, _COMB: Generador._COMB,
@@ -2002,9 +2121,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         tiempoRestante: J ? Math.round(J.msRest / 10) / 100 : null, esperando: J ? J.esperando : false, lectura: J ? J.lectura : false,
         nivelGlobal: J ? Math.round(nivelGlobal() * 100) / 100 : null,
         theta: J ? J.creencia.map(function (p, c) { return J.iniciada[c] ? Math.round(Bayes.media(p) * 100) / 100 : null; }) : null,
-        n: J ? J.n.slice() : null, activas: J ? [0, 1, 2, 3].map(catActiva) : null,
+        vidas: J && J.modo === 'JF' ? J.vidas : null, n: J ? J.n.slice() : null, activas: J ? [0, 1, 2, 3].map(catActiva) : null,
         luces: J ? J.luces : 0, regalos: J ? J.regalos : 0, cola: J ? J.cola.length : 0, codigo: J ? J.codigo : null,
-        pregunta: (J && J.q) ? { texto: J.q.p, html: J.q.html, cat: J.q.cat, nivel: J.q.nivel, respuesta: J.q.valor, expl: J.q.expl } : null,
+        pregunta: (J && J.q) ? { tema: J.q.tema, texto: J.q.p, html: J.q.html, cat: J.q.cat, nivel: J.q.nivel, respuesta: J.q.valor, expl: J.q.expl } : null,
         historial: J ? J.hist.slice() : [], ultimoResultado: J ? J.ultimoRes : null,
         resultado: ultimoResultado
       };
@@ -2081,6 +2200,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     if (!chip.hidden) chip.textContent = 'Nº ' + alumnoActual;
     var enJuego = id === 'p-juego';
     document.body.classList.toggle('en-juego', enJuego);
+    document.body.classList.toggle('jefe', !!(J && J.modo === 'JF' && (enJuego || id === 'p-result')));
     $('btn-pausa').hidden = !enJuego; $('btn-salir').hidden = !enJuego;
     var sc = document.querySelector('#' + id); if (sc && sc.scrollTop) sc.scrollTop = 0;
     UI.bloquear();
@@ -2088,17 +2208,76 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   UI.irLista = function () {
     alumnoActual = null; UI.buf = ''; UI.pintarLista(''); UI.mostrar('p-lista');
   };
+  /* --- portada: mapa de mundos (estilo videojuego de plataformas) --- */
+  var MUNDOS = ['', 'Valle de las Sumas', 'Bosque de los Paréntesis', 'Montañas Multiplicadoras', 'Cueva de las Potencias', 'Volcán de las Combinadas'];
+  var POS = [null, [10, 68], [27, 32], [45, 66], [63, 30], [79, 64]];      // % del mapa (x, y) de cada mundo
+  var POS_CASTILLO = [92, 28];
+  function heroeSVG() {
+    return '<svg viewBox="0 0 40 52" aria-hidden="true"><rect x="4" y="2" width="32" height="46" rx="8" fill="#ffd23f" stroke="#10322c" stroke-width="3"/>' +
+      '<rect x="9" y="7" width="22" height="14" rx="3" fill="#10322c"/><circle cx="16" cy="13" r="2.6" fill="#fff"/><circle cx="24" cy="13" r="2.6" fill="#fff"/><path d="M15 17 Q20 20 25 17" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      '<g fill="#10322c"><circle cx="12" cy="29" r="2.6"/><circle cx="20" cy="29" r="2.6"/><circle cx="28" cy="29" r="2.6"/><circle cx="12" cy="37" r="2.6"/><circle cx="20" cy="37" r="2.6"/><circle cx="28" cy="37" r="2.6"/></g></svg>';
+  }
+  function fondoMapaSVG() {
+    var pts = POS.slice(1).concat([POS_CASTILLO]).map(function (q) { return (q[0]) + ',' + (q[1] * 0.6); }).join(' ');
+    return '<svg class="fondo" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">' +
+      '<circle cx="90" cy="9" r="5" fill="#ffe27a"/><g fill="#fff" opacity=".9"><ellipse cx="20" cy="8" rx="8" ry="2.6"/><ellipse cx="25" cy="6.6" rx="5" ry="2.4"/><ellipse cx="58" cy="11" rx="9" ry="2.8"/><ellipse cx="64" cy="9.4" rx="5" ry="2.4"/></g>' +
+      '<path d="M0 32 Q12 20 24 32 T48 32 T72 31 T100 30 L100 60 L0 60Z" fill="#6bc45f" opacity=".55"/><path d="M0 60 L0 40 Q15 30 30 40 T60 40 T100 38 L100 60Z" fill="#3f9d46" opacity=".5"/>' +
+      '<polyline points="' + pts + '" fill="none" stroke="#fff6c9" stroke-width="1.6" stroke-dasharray="2.2 2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke-width:5px"/></svg>';
+  }
   UI.irMenu = function () {
     $('saludo').textContent = '¡Hola, número ' + alumnoActual + '!';
-    var h = '';
-    for (var t = 1; t <= 5; t++) {
-      var pr = Almacen.prog(alumnoActual, t), niv = pr ? Math.floor(clamp(pr.theta, 1, 10)) : 0;
-      h += '<button class="modo" type="button" data-tema="' + t + '"><span class="ic" aria-hidden="true">' + esc(TEMA_ICONO[t] || '') + '</span><h3>' + TEMAS_NOMBRE[t] + '</h3><p>' + TEMA_DESC[t] + '</p>' +
-        '<span class="niv">' + (pr ? 'Tu nivel: ' + niv + ' de 10<i style="width:' + (niv * 8) + 'px"></i>' : 'Todavía no has repasado este tema') + '</span></button>';
+    var niv = [0], i, sum = 0, listos = 0, sug = 0, minN = 99;
+    for (i = 1; i <= 5; i++) { niv[i] = nivelTema(alumnoActual, i); sum += niv[i]; if (niv[i] >= 6) listos++; else if (niv[i] < minN) { minN = niv[i]; sug = i; } }
+    var jf = jefeEstado(alumnoActual);
+    var h = fondoMapaSVG();
+    for (i = 1; i <= 5; i++) {
+      var n = niv[i], est = n >= 6 ? 'n2' : (n >= 1 ? 'n1' : 'n0'), seg = '';
+      for (var k = 1; k <= 10; k++) seg += '<i class="' + (k <= n ? 'on ' : '') + (k === 6 ? 'meta' : '') + '"></i>';
+      h += '<button type="button" class="nodo ' + est + (i === sug ? ' sugerido' : '') + '" style="--x:' + POS[i][0] + '%;--y:' + POS[i][1] + '%" data-tema="' + i + '" aria-label="Mundo ' + i + ': ' + MUNDOS[i] + ' (' + TEMAS_NOMBRE[i] + '). ' + (n ? 'Nivel ' + n + ' de 10.' : 'Sin empezar.') + '">' +
+        '<span class="disco" aria-hidden="true">' + esc(TEMA_ICONO[i] || '') + '<span class="num">' + i + '</span></span><span class="nombre">' + MUNDOS[i] + '</span>' +
+        '<span class="nivel"><span>' + (n ? 'Nivel ' + n + ' de 10' : 'Sin empezar') + '</span><span class="segs" aria-hidden="true">' + seg + '</span></span></button>';
     }
-    $('temas').innerHTML = h;
+    var cest = jf.vencido ? 'vencido' : (jf.abierto ? 'abierto' : 'bloq');
+    var ctxt = jf.vencido ? '👑 Vencido · mejor ' + jf.mejor + '/20' : (jf.abierto ? '¡Listo para el combate!' : '🔒 Nivel 6 en los 5 mundos');
+    h += '<button type="button" class="nodo castillo ' + cest + (jf.abierto && !jf.vencido ? ' sugerido' : '') + '" style="--x:' + POS_CASTILLO[0] + '%;--y:' + POS_CASTILLO[1] + '%" data-jefe="1" aria-label="Castillo del Jefe Final. ' + ctxt + '">' +
+      '<span class="disco" aria-hidden="true">' + (jf.vencido ? '👑' : '🏰') + '</span><span class="nombre">Jefe Final</span><span class="nivel"><span>' + ctxt + '</span></span></button>';
+    var hp = jf.abierto ? POS_CASTILLO : POS[sug || 1];
+    h += '<div class="heroe" style="--x:' + hp[0] + '%;--y:' + hp[1] + '%" aria-hidden="true">' + heroeSVG() + '</div>';
+    $('mapa').innerHTML = h;
+    $('mapa-resumen').innerHTML = '<span>⭐ Mundos con nivel 6: ' + listos + '/5</span><span>🪙 ' + sum + '/50</span><span>' + (jf.vencido ? '👑 Jefe vencido' : (jf.abierto ? '🏰 Jefe abierto' : '🔒 Jefe cerrado')) + '</span>';
+    $('mapa-sub').textContent = 'Elige un mundo para entrenar. Con nivel 6 o más en los 5 mundos se abre el castillo del Jefe Final.';
+    if (jf.abierto) $('mapa-faltan').innerHTML = jf.vencido ? '👑 ¡Has vencido a Lord Negativo! Puedes volver a enfrentarte a él cuando quieras.' : '🏰 <b>¡Los 5 mundos superados!</b> El castillo está abierto: toca el castillo para enfrentarte a Lord Negativo.';
+    else $('mapa-faltan').innerHTML = 'Para abrir el castillo te falta: ' + jf.faltan.map(function (f) { return '<b>Mundo ' + f.tema + '</b> (' + (f.nivel ? 'nivel ' + f.nivel + ' de 6' : 'sin empezar') + ')'; }).join(', ') + '.';
     UI.mostrar('p-menu');
   };
+  // toque en el castillo
+  UI.abrirJefe = function () {
+    var jf = jefeEstado(alumnoActual);
+    if (!jf.abierto) {
+      Modal.abrir('<h2>🔒 El castillo está cerrado</h2><p>Lord Negativo solo recibe a quien domina los 5 mundos: hace falta <b>nivel 6 o más en cada uno</b>.</p><ul>' +
+        jf.faltan.map(function (f) { return '<li><b>Mundo ' + f.tema + '</b> · ' + MUNDOS[f.tema] + ': ' + (f.nivel ? 'nivel ' + f.nivel + ' de 6' : 'sin empezar') + '</li>'; }).join('') + '</ul>',
+        [{ t: 'Volver al mapa', cls: 'verde', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); } });
+      return;
+    }
+    Modal.abrir('<h2>👾 ¡Jefe Final: Lord Negativo!</h2><p>Te espera con <b>20 preguntas mezcladas</b> de los 5 mundos y de nivel alto (6 a 8).</p><ul><li>Tienes <b>5 vidas</b> ❤: cada fallo (o «No sé») te quita una.</li><li>Si te quedas sin vidas, pierdes el combate (y puedes volver a intentarlo).</li><li>No hay reloj: piensa con calma.</li></ul>' + (jf.vencido ? '<p>Ya lo has vencido. ¿Quieres repetirlo?</p>' : ''),
+      [{ t: 'Ahora no', fn: function () { Modal.cerrar(); } }, { t: '¡A luchar!', cls: 'verde', id: 'jf-go', fn: function () { Modal.cerrar(); Sonido.despertar(); Sonido.jefe(); iniciar('JF', alumnoActual); } }],
+      { defecto: 'jf-go', cancel: function () { Modal.cerrar(); } });
+  };
+  function jefeSVG() {
+    return '<svg id="jefe-svg" class="jefe-svg" viewBox="0 0 200 210" role="img" aria-label="Lord Negativo, el jefe final">' +
+      '<path d="M52 56 L40 14 L72 40Z M148 56 L160 14 L128 40Z" fill="#e9e3f5" stroke="#241438" stroke-width="4" stroke-linejoin="round"/>' +
+      '<path d="M70 38 L82 14 L100 32 L118 14 L130 38Z" fill="#ffd23f" stroke="#241438" stroke-width="4" stroke-linejoin="round"/>' +
+      '<ellipse cx="100" cy="116" rx="78" ry="82" fill="#6a2c91" stroke="#241438" stroke-width="5"/>' +
+      '<ellipse cx="100" cy="132" rx="52" ry="52" fill="#8a4bb5" opacity=".6"/>' +
+      '<g stroke="#241438" stroke-width="4"><ellipse cx="70" cy="92" rx="19" ry="23" fill="#fff"/><ellipse cx="130" cy="92" rx="19" ry="23" fill="#fff"/></g>' +
+      '<circle cx="74" cy="98" r="8" fill="#d62839"/><circle cx="126" cy="98" r="8" fill="#d62839"/><circle cx="76" cy="95" r="2.6" fill="#fff"/><circle cx="128" cy="95" r="2.6" fill="#fff"/>' +
+      '<path d="M48 70 L88 80 M152 70 L112 80" stroke="#241438" stroke-width="7" stroke-linecap="round"/>' +
+      '<path d="M58 142 Q100 176 142 142 L134 156 L122 142 L110 160 L100 144 L90 160 L78 142 L66 156Z" fill="#fff" stroke="#241438" stroke-width="4" stroke-linejoin="round"/>' +
+      '<rect x="80" y="178" width="40" height="10" rx="5" fill="#ffd23f" stroke="#241438" stroke-width="3"/></svg>';
+  }
+  function decoJefe() {
+    return '<div class="deco-jefe"><div class="boss-nombre">LORD NEGATIVO</div>' + jefeSVG() + '<div class="boss-barra" role="img" aria-label="Poder del jefe"><i id="boss-hp" style="width:100%"></i></div></div>';
+  }
 
   /* --- entrada numérica (pantalla de lista y PIN) --- */
   UI.pintarLista = function (msg) {
@@ -2171,8 +2350,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     if (UI.tLuces) { clearTimeout(UI.tLuces); UI.tLuces = null; }
     UI.neg = false; UI.dig = ''; UI.okTexto = ''; UI.pen = null; UI.pintarResp();
     $('fb-error').hidden = true; $('toast').textContent = '';
-    $('deco').innerHTML = decoSVG();
-    $('h-modo-t').textContent = 'Tema';
+    var jf = J.modo === 'JF';
+    $('deco').innerHTML = jf ? decoJefe() : decoSVG();
+    $('h-puntos-t').textContent = jf ? 'Vidas' : 'Aciertos';
+    $('h-modo-t').textContent = jf ? 'Jefe' : 'Tema';
+    $('h-niv-l').textContent = jf ? 'Pregunta' : 'Nivel';
+    $('btn-salir').textContent = jf ? '🏳 Rendirse' : '✔ Terminar';
     $('barra-global').hidden = true;
     $('h-modo-celda').classList.remove('urge', 'golpe');
     UI.estrellasN = -1;
@@ -2180,8 +2363,16 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   };
   UI.pintarLuces = function () { /* sin luces en el repaso */ };
   UI.pintarHUD = function () {
-    $('h-puntos').textContent = J.aciertos + ' / ' + J.respondidas;
     $('h-racha').textContent = J.racha ? '🔥 ' + J.racha : '0';
+    if (J.modo === 'JF') {
+      var cor = ''; for (var v = 0; v < 5; v++) cor += v < J.vidas ? '❤️' : '🖤';
+      $('h-puntos').innerHTML = '<span class="corazones" aria-label="' + J.vidas + ' vidas">' + cor + '</span>';
+      $('h-niv-t').textContent = Math.min(J.respondidas + 1, J.total) + ' de ' + J.total;
+      $('h-niv').style.width = (J.respondidas / J.total * 100) + '%';
+      var hp = $('boss-hp'); if (hp) hp.style.width = ((J.total - J.respondidas) / J.total * 100) + '%';
+      UI.pintarReloj(); return;
+    }
+    $('h-puntos').textContent = J.aciertos + ' / ' + J.respondidas;
     var ng = nivelGlobal();
     $('h-niv-t').textContent = Math.floor(ng) + ' de 10';
     $('h-niv').style.width = (clamp((ng - 1) / 9, 0, 1) * 100) + '%';
@@ -2195,7 +2386,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function textoReloj(ms) { var s = Math.max(0, Math.ceil(ms / 1000)), mm = Math.floor(s / 60), ss = s % 60; return mm + ':' + (ss < 10 ? '0' : '') + ss; }
   UI.pintarReloj = function () {
     if (!J) return;
-    var ic = TEMA_ICONO[J.tema] || '';
+    var ic = J.modo === 'JF' ? '👾' : (TEMA_ICONO[J.tema] || '');
     if ($('h-modo').textContent !== ic) $('h-modo').textContent = ic;
     var rp = $('reloj-pausa'); if (rp) rp.textContent = 'Llevas ' + J.respondidas + ' preguntas en este tema.';
   };
@@ -2206,7 +2397,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   };
   UI.pintarPregunta = function () {
     var q = J.q;
-    $('q-cat').textContent = TEMAS_NOMBRE[J.tema] + (J.refuerzo ? ' · 🔁 Refuerzo' : '');
+    $('q-cat').textContent = J.modo === 'JF' ? '👾 Jefe Final · ' + (J.respondidas + 1) + '/' + J.total + ' · ' + MUNDOS[J.tema] : TEMAS_NOMBRE[J.tema] + (J.refuerzo ? ' · 🔁 Refuerzo' : '');
     $('expr').innerHTML = q.html;
     $('expr').setAttribute('aria-label', q.p.replace(/\^(\d+)/g, ' elevado a $1').replace(/:/g, ' dividido entre ').replace(/·/g, ' por ').replace(/−/g, ' menos '));
     UI.okTexto = '';                                           // las cifras tecleadas durante la pausa del acierto se conservan
@@ -2237,8 +2428,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       if (res.refuerzo === 'sale') extra = ' ¡Refuerzo superado! Volvemos a subir.';
       UI.okTexto = (res.correcta < 0 ? M + (-res.correcta) : res.correcta);
       UI.pintarResp();
-      UI.aviso(azar(MENSAJES_OK) + extra, 'ok');
-      Sonido.acierto();
+      if (J.modo === 'JF') { UI.aviso(azar(['¡Golpe!', '¡Directo al Jefe!', '¡Crítico!', '¡Zas!', '¡Lord Negativo se tambalea!', '¡Eso le dolió!']), 'ok'); UI.animarJefe('golpe'); Sonido.golpe(); }
+      else { UI.aviso(azar(MENSAJES_OK) + extra, 'ok'); Sonido.acierto(); }
     } else {
       UI.pintarResp();
       var blanco = res.tipo === 'blanco';
@@ -2248,11 +2439,16 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var ex = res.explHTML + '<div class="animo">' + azar(MENSAJES_ERR) + '</div>';
       if (res.refuerzo === 'entra') ex += '<div class="refuerzo">🔁 <b>' + azar(MENSAJES_REF) + '</b> Bajamos al nivel ' + res.refNivel + ' y repetimos hasta acertar 3 seguidas.</div>' + UI.htmlLeccion(J.tema, true);
       $('fbe-expl').innerHTML = ex;
-      $('fbe-pen').textContent = 'Volverá a salir más adelante con otros números.';
+      $('fbe-pen').textContent = J.modo === 'JF' ? '¡Lord Negativo se ríe! Pierdes una vida: te quedan ' + res.vidas + ' ❤' : 'Volverá a salir más adelante con otros números.';
+      if (J.modo === 'JF') { UI.animarJefe('rie'); $('fbe-t').textContent = res.final === 'derrota' ? '💀 Te has quedado sin vidas' : '😈 ¡Fallo!'; }
       $('fb-error').hidden = false;
       if (CFG.PAUSA_ERR === 0) { try { $('fbe-ok').focus(); } catch (e) { /* nada */ } }
       Sonido.error();
     }
+  };
+  UI.animarJefe = function (cl) {
+    var e = $('jefe-svg'); if (!e) return;
+    e.classList.remove('golpe', 'rie'); void e.getBoundingClientRect(); e.classList.add(cl);
   };
   UI.ocultarFeedback = function () { $('fb-error').hidden = true; };
 
@@ -2267,6 +2463,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   };
   UI.salir = function () {
     if (!J || J.terminada) { UI.irMenu(); return; }
+    if (J.modo === 'JF') {
+      Modal.abrir('<h2>¿Rendirte?</h2><p>Abandonarás el combate con Lord Negativo. <b>No se guarda</b> y podrás volver a intentarlo.</p>',
+        [{ t: 'Sí, rendirme', cls: 'rojo', id: 'salir-si', fn: function () { Modal.cerrar(); abandonar(); } }, { t: 'Seguir luchando', cls: 'verde', id: 'salir-no', fn: function () { Modal.cerrar(); } }],
+        { defecto: 'salir-no', opaco: true, cancel: function () { Modal.cerrar(); } });
+      return;
+    }
     Modal.abrir('<h2>¿Terminar el repaso?</h2><p>Verás tu resumen y se guardará tu progreso en este tema.</p>',
       [{ t: 'Sí, terminar', cls: 'verde', id: 'salir-si', fn: function () { Modal.cerrar(); finalizar(); } }, { t: 'Seguir repasando', cls: 'rojo', id: 'salir-no', fn: function () { Modal.cerrar(); } }],
       { defecto: 'salir-no', opaco: true, cancel: function () { Modal.cerrar(); } });
@@ -2305,11 +2507,28 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     UI.mostrar('p-result');
     Sonido.fin();
   };
-  UI.mostrarResultados = function () { UI.mostrarResultadosRP(ultimoResultado); };
+  UI.mostrarResultadosJF = function (R) {
+    var r = R.rec, cor = ''; for (var v = 0; v < 5; v++) cor += v < R.vidas ? '❤️' : '🖤';
+    var h = '<div class="res-layout"><div class="res-izq"><div class="res-cab"><div class="medalla" aria-hidden="true">' + (R.victoria ? '👑' : '💀') + '</div>' +
+      '<h1 class="titulo">' + (R.victoria ? '¡Jefe Final derrotado!' : '¡Lord Negativo gana esta vez!') + '</h1><p class="sub">Alumno nº ' + r.lista + ' · Jefe Final</p></div>' +
+      '<div class="vidas-fin" aria-label="Vidas restantes: ' + R.vidas + '">' + cor + '</div>' +
+      '<div class="res-grid"><div class="dato grande"><b>' + r.precision + ' %</b><span>de aciertos</span></div><div class="dato"><b>' + r.aciertos + '</b><span>Aciertos</span></div><div class="dato"><b>' + r.errores + '</b><span>Errores</span></div>' +
+      '<div class="dato"><b>' + (r.aciertos + r.errores + (r.blancos || 0)) + ' / 20</b><span>Preguntas</span></div><div class="dato"><b>' + r.mejorRacha + '</b><span>Mejor racha</span></div><div class="dato"><b>' + fmt1(r.tiempoMedio) + ' s</b><span>Tiempo medio</span></div></div></div><div class="res-der">';
+    if (R.victoria) h += '<div class="res-pos">' + (R.primera ? '🎉 <b>¡Primera victoria!</b> Ya tienes la corona en el mapa.' : '🏆 ¡Otra victoria contra Lord Negativo!') + '</div>';
+    else h += '<div class="res-pos"><b>No pasa nada: ¡a entrenar y vuelves!</b>' + (R.flojos.length ? '<br>Los mundos donde más has fallado: ' + R.flojos.slice(0, 3).map(function (t) { return '<b>' + MUNDOS[t] + '</b>'; }).join(', ') + '.' : '') + '</div>';
+    if (R.reglas.length) h += '<div class="res-pos"><b>Para repasar:</b><ul>' + R.reglas.map(function (x) { return '<li>' + Generador.aHTML(esc(x)) + '</li>'; }).join('') + '</ul></div>';
+    h += '<div class="res-codigo">Código de resultado (apúntalo o haz una captura)<br><code id="codigo">' + r.codigo + '</code></div><div class="res-aviso" id="res-aviso" role="status"></div>' +
+      '<div class="res-botones"><button class="btn verde grande" id="r-modo" type="button">🗺 Volver al mapa</button>' + (R.victoria ? '' : '<button class="btn oro" id="r-otra" type="button">⚔ Intentarlo otra vez</button>') +
+      '<button class="btn" id="r-enviar" type="button">✉️ Enviar a mi profesor</button><button class="btn suave" id="r-alumno" type="button">👤 Cambiar alumno</button></div></div></div>';
+    $('p-result').innerHTML = h;
+    UI.mostrar('p-result');
+    if (R.victoria) { Sonido.jefe(); Sonido.fin(); } else Sonido.derrota();
+  };
+  UI.mostrarResultados = function () { if (ultimoResultado.jf) UI.mostrarResultadosJF(ultimoResultado); else UI.mostrarResultadosRP(ultimoResultado); };
   UI.enviar = function () {
     var R = ultimoResultado; if (!R) return;
     var r = R.rec, asunto = 'Repaso de mates - lista ' + r.lista;
-    var texto = 'Repaso de mates · lista ' + r.lista + ' · ' + nombreTema(r.tema) + ' · aciertos ' + r.aciertos + ', errores ' + r.errores + ', nivel ' + fmt1(r.nivel) + ' · código: ' + r.codigo;
+    var texto = 'Repaso de mates · lista ' + r.lista + ' · ' + nombreSesion(r) + ' · aciertos ' + r.aciertos + ', errores ' + r.errores + ', nivel ' + fmt1(r.nivel) + ' · código: ' + r.codigo;
     var av = $('res-aviso');
     var correo = function () {
       try { location.href = 'mailto:?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(texto); if (av) av.textContent = 'Se abre tu correo con el resultado. Si no se abre, apunta el código.'; }
@@ -2412,12 +2631,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         tbar.innerHTML = tabs.map(function (t) { return '<button type="button" class="tab' + (t[0] === tab ? ' sel' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('');
         var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
         if (tab === 'resumen') {
-          var rp = ps.filter(function (p) { return p.modo === 'RP'; });
+          var rp = ps.filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; });
           if (!rp.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones de repaso guardadas en este dispositivo.</p>'; return; }
           var por = {}; rp.forEach(function (p) { var l = (por[p.lista] = por[p.lista] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
           var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Nº lista</th>';
           for (var tt = 1; tt <= 5; tt++) h += '<th>' + TEMAS_NOMBRE[tt] + '</th>';
-          h += '</tr></thead><tbody>';
+          h += '<th>Jefe Final</th></tr></thead><tbody>';
           Object.keys(por).sort(function (a, b) { return a - b; }).forEach(function (k) {
             h += '<tr><td>' + k + '</td>';
             for (var t2 = 1; t2 <= 5; t2++) {
@@ -2426,13 +2645,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
               var pre = l.reduce(function (s0, p) { return s0 + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s0, p) { return s0 + p.aciertos; }, 0);
               h += '<td>Nivel ' + fmt1(l[l.length - 1].nivel) + ' · ' + (pre ? Math.round(100 * ac / pre) : 0) + ' % (' + l.length + ')</td>';
             }
-            h += '</tr>';
+            var jfs = ps.filter(function (p) { return p.modo === 'JF' && String(p.lista) === String(k); }), vic = jfs.filter(function (p) { return p.puntos === 1; }).length;
+            h += '<td>' + (jfs.length ? (vic ? '👑 vencido' : 'derrotado') + ' (' + jfs.length + ' intento/s)' : '—') + '</td></tr>';
           });
           cuerpo.innerHTML = h + '</tbody></table>';
         } else if (tab === 'partidas') {
           if (!ps.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones guardadas.</p>'; return; }
           var h2 = '<table class="tabla"><thead><tr><th>Nº</th><th>Tema</th><th>Fecha y hora</th><th>Preguntas</th><th>Aciertos</th><th>Errores</th><th>%</th><th>Nivel</th><th>Refuerzos</th><th>Código</th></tr></thead><tbody>';
-          ps.forEach(function (p) { h2 += '<tr><td>' + p.lista + '</td><td>' + (nombreTema(p.tema) || nombreModo(p.modo)) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
+          ps.forEach(function (p) { h2 += '<tr><td>' + p.lista + '</td><td>' + nombreSesion(p) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + (p.modo === 'JF' ? '—' : fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel)) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
           cuerpo.innerHTML = h2 + '</tbody></table>';
         } else if (tab === 'exportar') {
           cuerpo.innerHTML = '<p>' + ps.length + ' partida(s) guardada(s) en este dispositivo.</p>' +
@@ -2515,10 +2735,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       pintar();
     },
     ayuda: function () {
-      Modal.abrir('<h2>❓ Cómo funciona</h2><ol><li>Elige el <b>tema</b> que quieres repasar.</li><li>Resuelve la operación <b>de cabeza</b> y escribe el resultado con el teclado (<b>−</b> pone el signo menos). Pulsa <b>Comprobar</b>.</li>' +
+      Modal.abrir('<h2>❓ Cómo funciona</h2><ol><li>En el <b>mapa</b>, elige el mundo (tema) que quieres repasar.</li><li>Resuelve la operación <b>de cabeza</b> y escribe el resultado con el teclado (<b>−</b> pone el signo menos). Pulsa <b>Comprobar</b>.</li>' +
         '<li>Si fallas, te explicamos cómo se hace y la pregunta vuelve más adelante con otros números.</li></ol>' +
         '<p><b>Nivel:</b> de 1 a 10 dentro del tema. Sube poco a poco si aciertas.</p>' +
         '<p><b>Refuerzo:</b> si fallas varias seguidas, bajamos un poco el nivel, repasamos la regla y no volvemos a subir hasta que aciertes 3 seguidas.</p>' +
+        '<p><b>Jefe Final:</b> cuando llegues a <b>nivel 6 en los 5 mundos</b>, se abre el castillo. Te esperan 20 preguntas mezcladas y 5 vidas ❤.</p>' +
         '<p>No hay reloj: lo importante es <b>entenderlo y acertar</b>. Pulsa <b>Terminar</b> cuando quieras para ver tu resumen.</p>',
         [{ t: 'Entendido', cls: 'verde', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); } });
     }
@@ -2529,6 +2750,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     '<li><b>Un iPad compartido:</b> en «Exportar y datos», «Descargar CSV» o «Copiar resumen (Excel)».</li>' +
     '<li><b>Un iPad por alumno, solo el código:</b> al terminar, el alumno pulsa «Enviar a mi profesor» o te enseña el código. Los pegas, uno por línea, en «Decodificar».</li>' +
     '<li><b>Un iPad por alumno, con todo el detalle:</b> en cada iPad, «Exportar todas las partidas»; pega el texto en «Importar» de tu iPad. Se fusionan sin duplicados.</li></ol>' +
+    '<h3>Mapa y Jefe Final</h3><p>La portada es un mapa con los 5 temas como mundos y el nivel (1 a 10) de cada uno. El castillo del Jefe Final se abre cuando el alumno tiene <b>nivel 6 o más en los 5 mundos</b>. El combate son 20 preguntas mezcladas (4 de cada tema, niveles 6 a 8), con 5 vidas: cada fallo o «No sé» quita una; con 0 vidas pierde, y si llega al final con alguna vida, gana. Se puede repetir. Queda registrado en el panel y en el CSV como «Jefe Final (victoria/derrota)».</p>' +
     '<h3>Refuerzo</h3><p>Si el alumno falla 4 de las últimas 6 preguntas (con al menos 5 respondidas), se activa el refuerzo: baja 2 niveles, se muestra el resumen de la regla y se repite hasta acertar 3 seguidas. Las preguntas falladas vuelven 3 preguntas después con otros números.</p>' +
     '<h3>Código de resultado</h3><p>El código <code>L17-RP3-15-3-62-261124-1542-K7M</code> es: lista 17, tema 3, 15 aciertos, 3 errores, nivel 6,2, fecha 24/11/2026 15:42 y 3 caracteres de control (detectan erratas; no es una firma).</p>' +
     '<h3>Datos y PIN</h3><p>Los datos se guardan solo en este dispositivo (navegador), incluido el progreso de cada alumno en cada tema. Tras 3 PIN erróneos el panel se bloquea 30 s y el bloqueo se duplica en cada fallo siguiente.</p>' +
@@ -2546,7 +2768,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     Teclado.crear($('tec-lista'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
     Teclado.crear($('tec-juego'), { signo: true, fila: '<button type="button" class="tecla nose" data-k="nose">No sé</button><button type="button" class="tecla ok" data-k="ok" aria-label="Comprobar">✔ Comprobar</button>' });
     // estrella y luces del árbol de la escena de inicio encendidas
-    $('temas').addEventListener('click', function (e) {
+    $('mapa').addEventListener('click', function (e) {
+      var j = e.target.closest ? e.target.closest('button[data-jefe]') : null;
+      if (j) { Sonido.despertar(); UI.abrirJefe(); return; }
       var b = e.target.closest ? e.target.closest('button[data-tema]') : null; if (!b) return;
       Sonido.despertar(); iniciar('RP', alumnoActual, parseInt(b.getAttribute('data-tema'), 10));
     });
@@ -2557,7 +2781,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     $('fbe-ok').addEventListener('click', function () { UI.bloquear(); avanzar(); });
     $('p-result').addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return; Sonido.despertar();
-      if (b.id === 'r-otra') iniciar('RP', alumnoActual, ultimoResultado.rec.tema);
+      if (b.id === 'r-otra') { if (ultimoResultado.rec.modo === 'JF') iniciar('JF', alumnoActual); else iniciar('RP', alumnoActual, ultimoResultado.rec.tema); }
       else if (b.id === 'r-modo') UI.irMenu();
       else if (b.id === 'r-alumno') UI.irLista();
       else if (b.id === 'r-enviar') UI.enviar();
