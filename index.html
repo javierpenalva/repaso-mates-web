@@ -175,6 +175,11 @@ h1,h2,h3{margin:0}
 #mapa-guarda{width:100%;max-width:1040px;font-size:clamp(13px,1.8vmin,16px);font-weight:700;text-align:center;background:rgba(255,226,122,.16);border:2px dashed #ffe27a;border-radius:14px;padding:8px 12px}
 @media (prefers-reduced-motion:reduce){.trofeo.si .ic{animation:none}}
 
+.filtro-pp{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:6px 0;font-weight:700}
+.filtro-pp label{display:flex;gap:6px;align-items:center}
+.filtro-pp select{font:inherit;font-weight:700;padding:6px 10px;border-radius:10px;border:2px solid #8fa6c6;background:#fff;color:#10322c;min-height:40px}
+.filtro-pp .cuenta{margin-left:auto;font-size:.9em;opacity:.85}
+
 /* menú */
 #p-menu{align-items:center;gap:12px}
 .modos{display:grid;gap:16px;width:100%;max-width:1000px;flex:1 0 auto;min-height:0;align-content:center}
@@ -562,7 +567,9 @@ body.jefe .tarjeta .cat{color:#7b1fa2}
   var params = (typeof location !== 'undefined' && typeof URLSearchParams !== 'undefined') ? new URLSearchParams(location.search) : null;
   // Modo de pruebas: SOLO con ?test=1 (o en Node, sin navegador). Sin él no existe window.__JUEGO__
   // y los parámetros ?seed y ?rapido se ignoran.
-  var TEST = params ? params.get('test') === '1' : true;
+  // Además solo funciona en local (file:// o localhost): en la web publicada ?test=1 no abre nada.
+  var LOCAL = typeof location === 'undefined' || location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  var TEST = params ? (params.get('test') === '1' && LOCAL) : true;
   var RAPIDO = TEST && !!(params && params.get('rapido') === '1');
   var CFG = {
     DURACION_CR: RAPIDO ? 20 : 300,    // segundos de Contrarreloj (reales)
@@ -2247,18 +2254,18 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function nombreSesion(p) { return p.modo === 'JF' ? 'Jefe Final (' + (p.puntos === 1 ? 'victoria' : 'derrota') + ')' : (nombreTema(p.tema) || nombreModo(p.modo)); }
   function nombreTema(t) { return TEMAS_NOMBRE[t] || ''; }
   function fn(x) { return x === null || x === undefined ? '' : String(x).replace('.', ','); }
-  function tablaPartidas(sep) {
+  function tablaPartidas(sep, filtro) {
     var cab = ['grupo', 'lista', 'tema', 'fecha_hora', 'preguntas', 'aciertos', 'errores', 'en_blanco', 'precision_pct', 'nivel_inicial', 'nivel_final', 'nivel_max_acertado', 'racha_max', 'refuerzos', 'tiempo_s', 'tiempo_medio_s', 'codigo'];
-    var ps = Almacen.partidas().sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
+    var ps = Almacen.partidas().filter(function (p) { return !filtro || filtro(p); }).sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
     var filas = ps.map(function (p) {
       return filaTSV([etqGrupo(p.grupo), p.lista, nombreSesion(p), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
     });
     return [filaTSV(cab, sep)].concat(filas).join(sep === ';' ? '\r\n' : '\n');
   }
-  function csvTexto() { return tablaPartidas(';'); }
+  function csvTexto(filtro) { return tablaPartidas(';', filtro); }
   // una fila por alumno y tema: sesiones, preguntas, precisión media, nivel actual y última sesión
-  function resumenTSV() {
-    var ps = Almacen.partidas().filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; }), por = {};
+  function resumenTSV(filtro) {
+    var ps = Almacen.partidas().filter(function (p) { return (p.modo === 'RP' || p.modo === 'JF') && (!filtro || filtro(p)); }), por = {};
     ps.forEach(function (p) { var k = (p.grupo || '') + '|' + p.lista + '|' + (p.modo === 'JF' ? 9 : p.tema); (por[k] = por[k] || []).push(p); });
     var cab = ['grupo', 'lista', 'tema', 'sesiones', 'preguntas', 'precision_media_pct', 'nivel_actual', 'ultima_sesion'];
     var f = Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0].localeCompare(y[0]) || (x[1] - y[1]) || (x[2] - y[2]); }).map(function (k) {
@@ -2311,7 +2318,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     },
     ranking: ranking, rankingCompleto: rankingCompleto,
     partidas: function () { return Almacen.partidas(); },
-    csv: csvTexto, tsv: function () { return tablaPartidas('\t'); }, resumenTSV: resumenTSV,
+    csv: csvTexto, tsv: function (f) { return tablaPartidas('\t', f); }, resumenTSV: resumenTSV,
     borrarDatos: function () { Almacen.borrar(); },
     creencia: function (c) { return J ? J.creencia[c - 1].slice() : null; },
     decodificar: decodificarVarios, decodificarUno: decodificarUno, exportarTodo: exportarTodo, importarTodo: importarTodo,
@@ -2953,12 +2960,31 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       UI.ctx = 'modal';
       var tabs = [['resumen', 'Resumen'], ['partidas', 'Partidas'], ['exportar', 'Exportar y datos'], ['decodificar', 'Decodificar'], ['modelo', 'Cómo funciona']];
       var cuerpo = cont.querySelector('#pp-cuerpo'), tbar = cont.querySelector('#pp-tabs');
+      // filtro por curso y grupo (se mantiene mientras el panel está abierto y entre aperturas)
+      Modal.filtro = Modal.filtro || { c: '', g: '' };
+      var filtroFn = function () { var f = Modal.filtro; if (!f.c && !f.g) return null; return function (p) { var gr = p.grupo || ''; return (!f.c || gr.charAt(0) === f.c) && (!f.g || gr.charAt(1) === f.g); }; };
+      var etqFiltro = function () { var f = Modal.filtro; return (f.c ? f.c + 'º' : '') + (f.g || ''); };
+      var barraFiltro = document.createElement('div'); barraFiltro.className = 'filtro-pp'; barraFiltro.id = 'pp-filtro';
+      cont.insertBefore(barraFiltro, cuerpo);
+      function pintarFiltro() {
+        var f = Modal.filtro, n = Almacen.partidas().filter(function (p) { var fn0 = filtroFn(); return !fn0 || fn0(p); }), al = {};
+        n.forEach(function (p) { al[(p.grupo || '') + '|' + p.lista] = 1; });
+        barraFiltro.hidden = !(tab === 'resumen' || tab === 'partidas' || tab === 'exportar');
+        barraFiltro.innerHTML = '<label>Curso <select id="pp-fc" aria-label="Filtrar por curso"><option value="">Todos</option>' + CURSOS.map(function (c) { return '<option value="' + c + '"' + (f.c === c ? ' selected' : '') + '>' + c + 'º ESO</option>'; }).join('') + '</select></label>' +
+          '<label>Grupo <select id="pp-fg" aria-label="Filtrar por grupo"><option value="">Todos</option>' + GRUPOS.map(function (g) { return '<option value="' + g + '"' + (f.g === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select></label>' +
+          '<span class="cuenta" role="status">' + Object.keys(al).length + ' alumno(s) · ' + n.length + ' sesión(es)' + (etqFiltro() ? ' · ' + etqFiltro() : ' · todo el centro') + '</span>';
+      }
+      barraFiltro.addEventListener('change', function (e) {
+        if (e.target.id === 'pp-fc') Modal.filtro.c = e.target.value; else if (e.target.id === 'pp-fg') Modal.filtro.g = e.target.value; else return;
+        pintar();
+      });
       function pintar() {
+        pintarFiltro();
         tbar.innerHTML = tabs.map(function (t) { return '<button type="button" class="tab' + (t[0] === tab ? ' sel' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('');
-        var ps = Almacen.partidas().sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
+        var ps = Almacen.partidas().filter(function (p) { var ff = filtroFn(); return !ff || ff(p); }).sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
         if (tab === 'resumen') {
           var rp = ps.filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; });
-          if (!rp.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones de repaso guardadas en este dispositivo.</p>'; return; }
+          if (!rp.length) { cuerpo.innerHTML = '<p>' + (etqFiltro() ? 'No hay sesiones de repaso de ' + etqFiltro() + ' en este dispositivo.' : 'Todavía no hay sesiones de repaso guardadas en este dispositivo.') + '</p>'; return; }
           var por = {}; rp.forEach(function (p) { var kk = (p.grupo || '') + '|' + p.lista, l = (por[kk] = por[kk] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
           var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº lista</th>';
           for (var tt = 1; tt <= 5; tt++) h += '<th>' + TEMAS_NOMBRE[tt] + '</th>';
@@ -2976,12 +3002,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
           });
           cuerpo.innerHTML = h + '</tbody></table>';
         } else if (tab === 'partidas') {
-          if (!ps.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones guardadas.</p>'; return; }
+          if (!ps.length) { cuerpo.innerHTML = '<p>' + (etqFiltro() ? 'No hay sesiones de ' + etqFiltro() + '.' : 'Todavía no hay sesiones guardadas.') + '</p>'; return; }
           var h2 = '<table class="tabla"><thead><tr><th>Grupo</th><th>Nº</th><th>Tema</th><th>Fecha y hora</th><th>Preguntas</th><th>Aciertos</th><th>Errores</th><th>%</th><th>Nivel</th><th>Refuerzos</th><th>Código</th></tr></thead><tbody>';
           ps.forEach(function (p) { h2 += '<tr><td>' + (etqGrupo(p.grupo) || '—') + '</td><td>' + p.lista + '</td><td>' + nombreSesion(p) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + (p.modo === 'JF' ? '—' : fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel)) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
           cuerpo.innerHTML = h2 + '</tbody></table>';
         } else if (tab === 'exportar') {
-          cuerpo.innerHTML = '<p>' + ps.length + ' partida(s) guardada(s) en este dispositivo.</p>' +
+          cuerpo.innerHTML = '<p>' + ps.length + ' partida(s)' + (etqFiltro() ? ' de ' + etqFiltro() + ' (filtro activo: CSV, Excel y «Exportar partidas» solo incluyen estas)' : ' guardada(s) en este dispositivo') + '.</p>' +
             '<div class="seccion"><h3>Para Excel / hoja de cálculo</h3><div class="modal-botones" style="justify-content:flex-start"><button class="btn verde" type="button" id="pp-csv">⬇ Descargar CSV</button>' +
             '<button class="btn" type="button" id="pp-resumen">📋 Copiar resumen (Excel)</button><button class="btn" type="button" id="pp-tsv">📋 Copiar partidas (Excel)</button><button class="btn" type="button" id="pp-ver">👁 Mostrar CSV</button></div></div>' +
             '<div class="seccion"><h3>Juntar varios iPads y copias de seguridad</h3><p>En cada iPad pulsa «Exportar todas las partidas» (solo sesiones) o «Copia completa» (también niveles y medallas), copia el texto y pégalo en «Importar» (no se duplica nada y no se pisa lo más reciente).</p>' +
@@ -3018,19 +3044,19 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         var b = e.target.closest('button'); if (!b) return;
         aviso('');
         if (b.id === 'pp-csv') {
-          var txt = csvTexto();
+          var txt = csvTexto(filtroFn());
           try {
             var blob = new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' });
-            var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'repaso-mates-resultados.csv';
+            var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'repaso-mates-resultados' + (etqFiltro() ? '-' + etqFiltro() : '') + '.csv';
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
             setTimeout(function () { try { URL.revokeObjectURL(a.href); } catch (er) { /* nada */ } }, 2000);
             aviso('CSV generado. Si no se descarga, usa «Mostrar CSV» y copia el texto.');
           } catch (er) { mostrarArea(txt, 'No se ha podido descargar. Copia este texto y pégalo en una hoja de cálculo:'); }
-        } else if (b.id === 'pp-resumen') copiar(resumenTSV(), 'Resumen copiado: pégalo en Excel.');
-        else if (b.id === 'pp-tsv') copiar(tablaPartidas('\t'), 'Partidas copiadas: pégalas en Excel.');
-        else if (b.id === 'pp-ver') mostrarArea(csvTexto(), 'Texto CSV:');
+        } else if (b.id === 'pp-resumen') copiar(resumenTSV(filtroFn()), 'Resumen copiado: pégalo en Excel.');
+        else if (b.id === 'pp-tsv') copiar(tablaPartidas('\t', filtroFn()), 'Partidas copiadas: pégalas en Excel.');
+        else if (b.id === 'pp-ver') mostrarArea(csvTexto(filtroFn()), 'Texto CSV:');
         else if (b.id === 'pp-copia') { var cp = copiaDatos(null); mostrarArea(cp, 'Copia completa de este dispositivo. Guárdala en un lugar seguro:'); copiar(cp, 'Copia completa copiada.'); }
-        else if (b.id === 'pp-exp') { var ex = exportarTodo(); mostrarArea(ex, 'Copia este texto y pégalo en «Importar» del iPad del profesor:'); copiar(ex, 'Texto copiado.'); }
+        else if (b.id === 'pp-exp') { var ex = exportarTodo(filtroFn()); mostrarArea(ex, 'Copia este texto y pégalo en «Importar» del iPad del profesor:'); copiar(ex, 'Texto copiado.'); }
         else if (b.id === 'pp-impgo') {
           var r = restaurarCopia($('pp-imp').value);
           aviso('Progreso restaurado: ' + r.prog + ' · sesiones importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
