@@ -95,6 +95,12 @@ h1,h2,h3{margin:0}
 .tecla.entrar{grid-column:span 3;background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s);font-size:calc(var(--tecla)*.38)}
 
 /* pantalla número de lista (con scroll de seguridad en pantallas bajas) */
+#p-curso{align-items:center}
+.curso-caja{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:640px;margin:auto 0;text-align:center}
+.fila-opc{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.opc{min-width:84px;min-height:64px;padding:8px 18px;border-radius:16px;border:3px solid var(--tiza);background:rgba(255,255,255,.1);color:var(--tiza);font:700 26px/1 inherit;font-family:inherit;touch-action:manipulation;cursor:pointer}
+.opc.sel{background:var(--acento);color:#10322c;border-color:#fff}
+#curso-sig:disabled{opacity:.45}
 #p-lista{align-items:center}
 .lista-grid{display:grid;gap:14px 40px;width:100%;max-width:1000px;align-items:center;margin:auto 0}
 .lista-izq{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:0;justify-content:center}
@@ -380,12 +386,26 @@ body.jefe .tarjeta .cat{color:#7b1fa2}
   </header>
   <main id="pantallas">
 
+    <!-- 0. CURSO Y GRUPO -->
+    <section id="p-curso" class="pantalla scroll" aria-label="Curso y grupo">
+      <div class="curso-caja">
+        <h1 class="titulo">Repaso de mates</h1>
+        <p class="sub">¿En qué <b>curso</b> estás?</p>
+        <div class="fila-opc" id="opc-curso" role="group" aria-label="Curso"></div>
+        <p class="sub">¿Y en qué <b>grupo</b>?</p>
+        <div class="fila-opc" id="opc-grupo" role="group" aria-label="Grupo"></div>
+        <div class="msg" id="msg-curso" role="status"></div>
+        <button type="button" class="btn verde grande" id="curso-sig" disabled>Siguiente ▶</button>
+      </div>
+    </section>
+
     <!-- 1. NÚMERO DE LISTA -->
     <section id="p-lista" class="pantalla scroll" aria-label="Identificación">
       <div class="lista-grid">
         <div class="lista-izq">
           <h1 class="titulo">Repaso de mates</h1>
-          <p class="sub">Escribe tu <b>número de lista</b> (del 1 al 40)</p>
+          <p class="sub" id="sub-lista">Escribe tu <b>número de lista</b> (del 1 al 40)</p>
+          <button type="button" class="btn" id="btn-curso">Cambiar curso o grupo</button>
           <div class="escena" id="escena-lista" aria-hidden="true"></div>
         </div>
         <div class="lista-der">
@@ -1495,8 +1515,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     partidas: function () { return this.mem.partidas.slice(); },
     borrar: function () { this.mem.partidas = []; this.guardar(); },
     // progreso por alumno y tema: { theta, n, ts }
-    prog: function (lista, tema) { return (this.mem.prog || {})[lista + '-' + tema] || null; },
-    setProg: function (lista, tema, v) { if (!this.mem.prog) this.mem.prog = {}; this.mem.prog[lista + '-' + tema] = v; this.guardar(); },
+    prog: function (lista, tema) { return (this.mem.prog || {})[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] || null; },
+    setProg: function (lista, tema, v) { if (!this.mem.prog) this.mem.prog = {}; this.mem.prog[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] = v; this.guardar(); },
+    ultimo: function () { return this.mem.ultimo || null; },
+    setUltimo: function (g) { this.mem.ultimo = g; this.guardar(); },
     getMute: function () { return !!this.mem.mute; },
     setMute: function (v) { this.mem.mute = !!v; this.guardar(); }
   };
@@ -1550,6 +1572,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   var UI = { listo: false, pant: 'lista', ctx: 'lista' };
   var ultimoResultado = null;
   var alumnoActual = null;
+  var grupoActual = '';                                   // curso + grupo del alumno, p. ej. '2C' (1.º-3.º ESO, grupos A-G); '' = sin grupo
+  var CURSOS = ['1', '2', '3'], GRUPOS = 'ABCDEFG'.split('');
+  function grupoValido(g) { return /^[1-3][A-G]$/.test(String(g || '')); }
+  function etqGrupo(g) { return grupoValido(g) ? g.charAt(0) + 'º' + g.charAt(1) : ''; }
+  function etqAlumno(g, l) { return (etqGrupo(g) ? etqGrupo(g) + ' · ' : '') + 'Nº ' + l; }
 
   function fmt1(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ','); }
   function normModo(m) {
@@ -1582,7 +1609,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     }
     J = {
       tema: tema || 0, refuerzo: false, refNivel: 1, refAciertos: 0, nRefuerzos: 0, ventana: [], nivelIni: ini, fallos: {}, extra: {},
-      modo: modo, lista: lista, inicio: Date.now(),
+      modo: modo, lista: lista, grupo: grupoActual, inicio: Date.now(),
       perfil: perfilRP || PERFILES[modo] || PERFILES.CR,
       creencia: (perfilRP || PERFILES[modo] || PERFILES.CR).prior.map(function (x) { return Bayes.prior(x[0], x[1]); }),
       n: [0, 0, 0, 0], aciertosCat: [0, 0, 0, 0], errCat: [0, 0, 0, 0], recCat: [[], [], [], []],
@@ -1809,21 +1836,21 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
    *  El control detecta erratas y códigos inventados al azar; no es una firma criptográfica. */
   function chkCodigo(base) { return b32(hash32('mn-codigo|' + base), 3); }
   function armarCodigo(p, d) {
-    var base = 'L' + p.lista + '-' + (p.modo === 'RP' ? 'RP' + p.tema : p.modo) + '-' + p.aciertos + '-' + p.errores + '-' + (p.modo === 'RP' ? Math.round(p.nivel * 10) : p.puntos) + '-' +
+    var base = 'L' + (grupoValido(p.grupo) ? p.grupo : '') + p.lista + '-' + (p.modo === 'RP' ? 'RP' + p.tema : p.modo) + '-' + p.aciertos + '-' + p.errores + '-' + (p.modo === 'RP' ? Math.round(p.nivel * 10) : p.puntos) + '-' +
       p2(d.getFullYear() % 100) + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes());
     return base + '-' + chkCodigo(base);
   }
   function decodificarUno(txt) {
     var s = String(txt).replace(/\s+/g, '').toUpperCase();
-    var m = /^L(\d{1,2})-(CR|RM|RP[1-5]|JF)-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
+    var m = /^L([1-3][A-G])?(\d{1,2})-(CR|RM|RP[1-5]|JF)-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
     if (!m) return { ok: false, codigo: String(txt).trim(), error: 'formato no válido' };
     var base = s.slice(0, s.lastIndexOf('-'));
-    var o = { ok: true, codigo: s, lista: parseInt(m[1], 10), modo: m[2], aciertos: parseInt(m[3], 10), errores: parseInt(m[4], 10), puntos: parseInt(m[5], 10),
-      fecha: '20' + m[6].slice(0, 2) + '-' + m[6].slice(2, 4) + '-' + m[6].slice(4, 6), hora: m[7].slice(0, 2) + ':' + m[7].slice(2, 4), control: m[8] };
+    var o = { ok: true, codigo: s, grupo: m[1] || '', lista: parseInt(m[2], 10), modo: m[3], aciertos: parseInt(m[4], 10), errores: parseInt(m[5], 10), puntos: parseInt(m[6], 10),
+      fecha: '20' + m[7].slice(0, 2) + '-' + m[7].slice(2, 4) + '-' + m[7].slice(4, 6), hora: m[8].slice(0, 2) + ':' + m[8].slice(2, 4), control: m[9] };
     if (o.modo.charAt(0) === 'R' && o.modo.charAt(1) === 'P') { o.tema = parseInt(o.modo.charAt(2), 10); o.nivel = o.puntos / 10; o.puntos = 0; }
     if (o.modo === 'JF') o.victoria = o.puntos === 1;
     o.valorRank = o.modo === 'CR' ? o.aciertos - CFG.ERR_PESO_RANK * o.errores : o.puntos;
-    if (chkCodigo(base) !== m[8]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
+    if (chkCodigo(base) !== m[9]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
     else if (o.lista < 1 || o.lista > LISTA_MAX) { o.ok = false; o.error = 'número de lista fuera de rango'; }
     return o;
   }
@@ -1841,10 +1868,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     return arr.map(function (v) { v = (v === null || v === undefined) ? '' : String(v); return sep === ';' ? (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v) : v.replace(/[\t\r\n]+/g, ' '); }).join(sep);
   }
   function tablaDecodificada(res, sep) {
-    var cab = ['lista', 'tema', 'aciertos', 'errores', 'nivel', 'fecha', 'hora', 'estado', 'codigo'];
+    var cab = ['grupo', 'lista', 'tema', 'aciertos', 'errores', 'nivel', 'fecha', 'hora', 'estado', 'codigo'];
     var f = res.map(function (o) {
-      return o.ok ? [o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : ''), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
-        : ['', '', '', '', '', '', '', 'ERROR: ' + o.error, o.codigo];
+      return o.ok ? [etqGrupo(o.grupo), o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : ''), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
+        : ['', '', '', '', '', '', '', '', 'ERROR: ' + o.error, o.codigo];
     });
     return [filaTSV(cab, sep)].concat(f.map(function (r) { return filaTSV(r, sep); })).join(sep === ';' ? '\r\n' : '\n');
   }
@@ -1873,7 +1900,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function exportarTodo() {
     var filas = Almacen.partidas().map(function (p) {
       var n = p.niveles || {}, f = function (x) { return x === null || x === undefined ? -1 : x; };
-      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]);   // repaso: tema, nivel inicial, refuerzos
+      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]).concat([grupoValido(p.grupo) ? p.grupo : '']);   // repaso: tema, nivel inicial, refuerzos
     });
     var carga = b64enc(JSON.stringify(filas));
     return 'MN1:' + carga + ':' + b32(hash32('mn-export|' + carga), 6);
@@ -1881,7 +1908,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function importarTodo(texto) {
     var toks = String(texto).split(/\s+/).filter(function (t) { return t.indexOf('MN1:') === 0 || t.length > 0; });
     var r = { anadidas: 0, duplicadas: 0, invalidas: 0 };
-    var claves = {}; Almacen.partidas().forEach(function (p) { claves[p.lista + '|' + p.modo + '|' + p.ts] = true; });
+    var claves = {}; Almacen.partidas().forEach(function (p) { claves[(p.grupo || '') + '|' + p.lista + '|' + p.modo + '|' + p.ts] = true; });
     toks.forEach(function (t) {
       var parts = t.split(':');
       if (parts.length !== 3 || parts[0] !== 'MN1' || b32(hash32('mn-export|' + parts[1]), 6) !== parts[2]) { r.invalidas++; return; }
@@ -1889,11 +1916,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       if (!Array.isArray(filas)) { r.invalidas++; return; }
       filas.forEach(function (f) {
         if (!Array.isArray(f) || f.length < 16 || !(f[0] >= 1 && f[0] <= LISTA_MAX) || !((f[1] === 'RP' && f[12] >= 1 && f[12] <= 5) || (f[1] === 'JF' && f[12] === 0))) { r.invalidas++; return; }
-        var k = f[0] + '|' + f[1] + '|' + f[2];
+        var gr = grupoValido(f[16]) ? f[16] : '', k = gr + '|' + f[0] + '|' + f[1] + '|' + f[2];
         if (claves[k]) { r.duplicadas++; return; }
         claves[k] = true;
         var d = new Date(f[2]), tot = f[4] + f[5] + f[6], g = function (x) { return x < 0 ? null : x; };
-        var rec = { lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: f[1] === 'JF' ? (f[15] === 1 ? 1 : 0) : 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
+        var rec = { grupo: gr, lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: f[1] === 'JF' ? (f[15] === 1 ? 1 : 0) : 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
           tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[1] === 'RP' ? f[14] : 0, importada: true };
         if (f[1] === 'JF') rec.vidas = f[14];
         rec.codigo = armarCodigo(rec, d);
@@ -1951,7 +1978,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var niveles = {}, ni = ['suma', 'mult', 'pot', 'comb'];
     for (var c = 0; c < 4; c++) niveles[ni[c]] = J.n[c] ? Math.round(nivelCat(c) * 10) / 10 : null;
     var rec = {
-      lista: J.lista, modo: J.modo, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      grupo: J.grupo, lista: J.lista, modo: J.modo, fecha: fechaHora(ahora), ts: ahora.getTime(),
       puntos: J.puntos, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
       precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
@@ -1977,7 +2004,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function finalizarRP(ahora) {
     var tot = J.aciertos + J.errores + J.blancos, th = nivelCat(0);
     var rec = {
-      lista: J.lista, modo: 'RP', tema: J.tema, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      grupo: J.grupo, lista: J.lista, modo: 'RP', tema: J.tema, fecha: fechaHora(ahora), ts: ahora.getTime(),
       puntos: 0, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
       precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
@@ -1987,7 +2014,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     J.codigo = rec.codigo;
     if (J.respondidas > 0) {                                   // una sesión vacía no cambia el progreso
       Almacen.anadir(rec);
-      Almacen.setProg(J.lista, J.tema, { theta: th, n: ((Almacen.prog(J.lista, J.tema) || {}).n || 0) + J.respondidas, ts: ahora.getTime() });
+      Almacen.setProg(J.lista, J.tema, { theta: th, n: ((Almacen.prog(J.lista, J.tema) || {}).n || 0) + J.respondidas - (J.yaGuardadas || 0), ts: ahora.getTime() });
     }
     var vistas = {}, reglas = Object.keys(J.fallos).sort(function (a, b) { return J.fallos[b] - J.fallos[a]; }).filter(function (r) {
       var k = r.replace(/\d+/g, 'n'); if (vistas[k]) return false; vistas[k] = true; return true;       // sin repetir la misma regla con otros números
@@ -1999,7 +2026,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function finalizarJF(ahora) {
     var tot = J.aciertos + J.errores + J.blancos, victoria = J.vidas > 0 && J.respondidas >= J.total;
     var rec = {
-      lista: J.lista, modo: 'JF', tema: 0, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      grupo: J.grupo, lista: J.lista, modo: 'JF', tema: 0, fecha: fechaHora(ahora), ts: ahora.getTime(),
       puntos: victoria ? 1 : 0, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
       precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
@@ -2032,7 +2059,17 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     return true;
   }
   // salir de una partida en curso: NO se guarda
+  // guarda solo el NIVEL del tema (sin registro de sesión) si el alumno sale o cierra sin pulsar Terminar
+  function guardarNivelRP() {
+    if (J && J.modo === 'RP' && !J.terminada && J.respondidas >= 3) {
+      var pr = Almacen.prog(J.lista, J.tema) || {};
+      Almacen.setProg(J.lista, J.tema, { theta: nivelCat(0), n: (pr.n || 0) + J.respondidas - (J.yaGuardadas || 0), ts: Date.now() });
+      J.yaGuardadas = J.respondidas;                          // no se cuenta dos veces
+    }
+  }
+  try { G.addEventListener('pagehide', guardarNivelRP); document.addEventListener('visibilitychange', function () { if (document.hidden) guardarNivelRP(); }); } catch (e) { /* sin eventos */ }
   function abandonar() {
+    guardarNivelRP();
     limpiarTimers();
     if (J && !J.terminada) { J.terminada = true; J.abandonada = true; J.esperando = false; J.lectura = false; }
     ultimoResultado = null;
@@ -2072,10 +2109,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function nombreTema(t) { return TEMAS_NOMBRE[t] || ''; }
   function fn(x) { return x === null || x === undefined ? '' : String(x).replace('.', ','); }
   function tablaPartidas(sep) {
-    var cab = ['lista', 'tema', 'fecha_hora', 'preguntas', 'aciertos', 'errores', 'en_blanco', 'precision_pct', 'nivel_inicial', 'nivel_final', 'nivel_max_acertado', 'racha_max', 'refuerzos', 'tiempo_s', 'tiempo_medio_s', 'codigo'];
-    var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
+    var cab = ['grupo', 'lista', 'tema', 'fecha_hora', 'preguntas', 'aciertos', 'errores', 'en_blanco', 'precision_pct', 'nivel_inicial', 'nivel_final', 'nivel_max_acertado', 'racha_max', 'refuerzos', 'tiempo_s', 'tiempo_medio_s', 'codigo'];
+    var ps = Almacen.partidas().sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
     var filas = ps.map(function (p) {
-      return filaTSV([p.lista, nombreSesion(p), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
+      return filaTSV([etqGrupo(p.grupo), p.lista, nombreSesion(p), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
     });
     return [filaTSV(cab, sep)].concat(filas).join(sep === ';' ? '\r\n' : '\n');
   }
@@ -2083,11 +2120,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   // una fila por alumno y tema: sesiones, preguntas, precisión media, nivel actual y última sesión
   function resumenTSV() {
     var ps = Almacen.partidas().filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; }), por = {};
-    ps.forEach(function (p) { var k = p.lista + '|' + (p.modo === 'JF' ? 9 : p.tema); (por[k] = por[k] || []).push(p); });
-    var cab = ['lista', 'tema', 'sesiones', 'preguntas', 'precision_media_pct', 'nivel_actual', 'ultima_sesion'];
-    var f = Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return (x[0] - y[0]) || (x[1] - y[1]); }).map(function (k) {
+    ps.forEach(function (p) { var k = (p.grupo || '') + '|' + p.lista + '|' + (p.modo === 'JF' ? 9 : p.tema); (por[k] = por[k] || []).push(p); });
+    var cab = ['grupo', 'lista', 'tema', 'sesiones', 'preguntas', 'precision_media_pct', 'nivel_actual', 'ultima_sesion'];
+    var f = Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0].localeCompare(y[0]) || (x[1] - y[1]) || (x[2] - y[2]); }).map(function (k) {
       var l = por[k].sort(function (a, b) { return a.ts - b.ts; }), pre = l.reduce(function (s, p) { return s + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s, p) { return s + p.aciertos; }, 0);
-      return filaTSV([l[0].lista, l[0].modo === 'JF' ? 'Jefe Final (' + l.filter(function (p) { return p.puntos === 1; }).length + ' victoria/s)' : nombreTema(l[0].tema), l.length, pre, pre ? Math.round(100 * ac / pre) : 0, fn(l[l.length - 1].nivel), l[l.length - 1].fecha], '\t');
+      return filaTSV([etqGrupo(l[0].grupo), l[0].lista, l[0].modo === 'JF' ? 'Jefe Final (' + l.filter(function (p) { return p.puntos === 1; }).length + ' victoria/s)' : nombreTema(l[0].tema), l.length, pre, pre ? Math.round(100 * ac / pre) : 0, fn(l[l.length - 1].nivel), l[l.length - 1].fecha], '\t');
     });
     return [filaTSV(cab, '\t')].concat(f).join('\n');
   }
@@ -2102,6 +2139,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
     generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
     jefeEstado: jefeEstado,
+    fijarGrupo: function (g) { grupoActual = grupoValido(g) ? g : ''; },
+    grupo: function () { return grupoActual; },
     progreso: function (l, t) { return Almacen.prog(l, t); },
     fijarProgreso: function (l, t, theta) { Almacen.setProg(l, t, { theta: theta, n: 20, ts: Date.now() }); },
     evaluar: function (expr) { return Evaluador.evaluar(expr); },
@@ -2197,7 +2236,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     UI.ctx = UI.pant;
     var chip = $('chip-alumno');
     chip.hidden = alumnoActual === null || id === 'p-lista';
-    if (!chip.hidden) chip.textContent = 'Nº ' + alumnoActual;
+    if (!chip.hidden) chip.textContent = etqAlumno(grupoActual, alumnoActual);
     var enJuego = id === 'p-juego';
     document.body.classList.toggle('en-juego', enJuego);
     document.body.classList.toggle('jefe', !!(J && J.modo === 'JF' && (enJuego || id === 'p-result')));
@@ -2206,7 +2245,23 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     UI.bloquear();
   };
   UI.irLista = function () {
-    alumnoActual = null; UI.buf = ''; UI.pintarLista(''); UI.mostrar('p-lista');
+    if (!grupoValido(grupoActual)) { UI.irCurso(); return; }
+    alumnoActual = null; UI.buf = ''; UI.pintarLista('');
+    $('sub-lista').innerHTML = '<b>' + etqGrupo(grupoActual) + '</b> · escribe tu <b>número de lista</b> (del 1 al ' + LISTA_MAX + ')';
+    UI.mostrar('p-lista');
+  };
+  /* --- selector de curso (1.º-3.º ESO) y grupo (A-G): primera pantalla --- */
+  UI.irCurso = function () {
+    alumnoActual = null;
+    var u = Almacen.ultimo() || grupoActual || '';
+    UI.selCurso = grupoValido(u) ? u.charAt(0) : ''; UI.selGrupo = grupoValido(u) ? u.charAt(1) : '';
+    UI.pintarCurso(); UI.mostrar('p-curso');
+  };
+  UI.pintarCurso = function () {
+    $('opc-curso').innerHTML = CURSOS.map(function (c) { return '<button type="button" class="opc' + (UI.selCurso === c ? ' sel' : '') + '" data-curso="' + c + '" aria-pressed="' + (UI.selCurso === c) + '">' + c + 'º ESO</button>'; }).join('');
+    $('opc-grupo').innerHTML = GRUPOS.map(function (g) { return '<button type="button" class="opc' + (UI.selGrupo === g ? ' sel' : '') + '" data-grupo="' + g + '" aria-pressed="' + (UI.selGrupo === g) + '">' + g + '</button>'; }).join('');
+    $('curso-sig').disabled = !(UI.selCurso && UI.selGrupo);
+    $('msg-curso').textContent = UI.selCurso && UI.selGrupo ? 'Has elegido ' + UI.selCurso + 'º ESO ' + UI.selGrupo : 'Elige tu curso y tu grupo';
   };
   /* --- portada: mapa de mundos (estilo videojuego de plataformas) --- */
   var MUNDOS = ['', 'Valle de las Sumas', 'Bosque de los Paréntesis', 'Montañas Multiplicadoras', 'Cueva de las Potencias', 'Volcán de las Combinadas'];
@@ -2294,7 +2349,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         UI.pintarLista('Escribe un número del 1 al ' + LISTA_MAX);
         var v = $('visor-lista'); v.classList.remove('sacudir'); void v.offsetWidth; v.classList.add('sacudir'); return;
       }
-      Modal.abrir('<h2>¿Eres el número ' + n + '?</h2><p>Comprueba que es el tuyo: tus resultados se guardan con este número.</p>',
+      Modal.abrir('<h2>¿Eres el número ' + n + ' de ' + etqGrupo(grupoActual) + '?</h2><p>Comprueba que es el tuyo: tus resultados se guardan con este curso, grupo y número.</p>',
         [{ t: 'No, corregir', fn: function () { Modal.cerrar(); } }, { t: 'Sí, soy yo', cls: 'verde', id: 'conf-si', fn: function () { Modal.cerrar(); alumnoActual = n; UI.irMenu(); } }],
         { defecto: 'conf-si', cancel: function () { Modal.cerrar(); } });
     }
@@ -2486,7 +2541,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var sube = r.nivel - r.nivelIni, med = r.precision >= 85 ? '🏆' : (r.precision >= 65 ? '⭐' : '💪');
     var titulo = R.vacia ? 'Repaso sin preguntas' : (r.precision >= 85 ? '¡Gran repaso!' : (r.precision >= 65 ? '¡Buen repaso!' : '¡Seguimos practicando!'));
     var h = '<div class="res-layout"><div class="res-izq"><div class="res-cab"><div class="medalla" aria-hidden="true">' + med + '</div><h1 class="titulo">' + titulo + '</h1>' +
-      '<p class="sub">Alumno nº ' + r.lista + ' · ' + TEMAS_NOMBRE[r.tema] + '</p></div>';
+      '<p class="sub">Alumno ' + etqAlumno(r.grupo, r.lista).replace('Nº ', 'nº ') + ' · ' + TEMAS_NOMBRE[r.tema] + '</p></div>';
     if (R.vacia) h += '<p class="sub">No has respondido ninguna pregunta, así que no se guarda nada.</p>';
     else {
       h += '<div class="res-grid"><div class="dato grande"><b>' + r.precision + ' %</b><span>de aciertos</span></div>' +
@@ -2510,7 +2565,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   UI.mostrarResultadosJF = function (R) {
     var r = R.rec, cor = ''; for (var v = 0; v < 5; v++) cor += v < R.vidas ? '❤️' : '🖤';
     var h = '<div class="res-layout"><div class="res-izq"><div class="res-cab"><div class="medalla" aria-hidden="true">' + (R.victoria ? '👑' : '💀') + '</div>' +
-      '<h1 class="titulo">' + (R.victoria ? '¡Jefe Final derrotado!' : '¡Lord Negativo gana esta vez!') + '</h1><p class="sub">Alumno nº ' + r.lista + ' · Jefe Final</p></div>' +
+      '<h1 class="titulo">' + (R.victoria ? '¡Jefe Final derrotado!' : '¡Lord Negativo gana esta vez!') + '</h1><p class="sub">Alumno ' + etqAlumno(r.grupo, r.lista).replace('Nº ', 'nº ') + ' · Jefe Final</p></div>' +
       '<div class="vidas-fin" aria-label="Vidas restantes: ' + R.vidas + '">' + cor + '</div>' +
       '<div class="res-grid"><div class="dato grande"><b>' + r.precision + ' %</b><span>de aciertos</span></div><div class="dato"><b>' + r.aciertos + '</b><span>Aciertos</span></div><div class="dato"><b>' + r.errores + '</b><span>Errores</span></div>' +
       '<div class="dato"><b>' + (r.aciertos + r.errores + (r.blancos || 0)) + ' / 20</b><span>Preguntas</span></div><div class="dato"><b>' + r.mejorRacha + '</b><span>Mejor racha</span></div><div class="dato"><b>' + fmt1(r.tiempoMedio) + ' s</b><span>Tiempo medio</span></div></div></div><div class="res-der">';
@@ -2527,8 +2582,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   UI.mostrarResultados = function () { if (ultimoResultado.jf) UI.mostrarResultadosJF(ultimoResultado); else UI.mostrarResultadosRP(ultimoResultado); };
   UI.enviar = function () {
     var R = ultimoResultado; if (!R) return;
-    var r = R.rec, asunto = 'Repaso de mates - lista ' + r.lista;
-    var texto = 'Repaso de mates · lista ' + r.lista + ' · ' + nombreSesion(r) + ' · aciertos ' + r.aciertos + ', errores ' + r.errores + ', nivel ' + fmt1(r.nivel) + ' · código: ' + r.codigo;
+    var r = R.rec, asunto = 'Repaso de mates - ' + (etqGrupo(r.grupo) ? etqGrupo(r.grupo) + ' ' : '') + 'lista ' + r.lista;
+    var texto = 'Repaso de mates · ' + (etqGrupo(r.grupo) ? etqGrupo(r.grupo) + ' · ' : '') + 'lista ' + r.lista + ' · ' + nombreSesion(r) + ' · aciertos ' + r.aciertos + ', errores ' + r.errores + ', nivel ' + fmt1(r.nivel) + ' · código: ' + r.codigo;
     var av = $('res-aviso');
     var correo = function () {
       try { location.href = 'mailto:?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(texto); if (av) av.textContent = 'Se abre tu correo con el resultado. Si no se abre, apunta el código.'; }
@@ -2629,30 +2684,30 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var cuerpo = cont.querySelector('#pp-cuerpo'), tbar = cont.querySelector('#pp-tabs');
       function pintar() {
         tbar.innerHTML = tabs.map(function (t) { return '<button type="button" class="tab' + (t[0] === tab ? ' sel' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('');
-        var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
+        var ps = Almacen.partidas().sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
         if (tab === 'resumen') {
           var rp = ps.filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; });
           if (!rp.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones de repaso guardadas en este dispositivo.</p>'; return; }
-          var por = {}; rp.forEach(function (p) { var l = (por[p.lista] = por[p.lista] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
-          var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Nº lista</th>';
+          var por = {}; rp.forEach(function (p) { var kk = (p.grupo || '') + '|' + p.lista, l = (por[kk] = por[kk] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
+          var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº lista</th>';
           for (var tt = 1; tt <= 5; tt++) h += '<th>' + TEMAS_NOMBRE[tt] + '</th>';
           h += '<th>Jefe Final</th></tr></thead><tbody>';
-          Object.keys(por).sort(function (a, b) { return a - b; }).forEach(function (k) {
-            h += '<tr><td>' + k + '</td>';
+          Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0].localeCompare(y[0]) || (x[1] - y[1]); }).forEach(function (k) {
+            h += '<tr><td>' + (etqGrupo(k.split('|')[0]) || '—') + '</td><td>' + k.split('|')[1] + '</td>';
             for (var t2 = 1; t2 <= 5; t2++) {
               var l = (por[k][t2] || []).sort(function (a, b) { return a.ts - b.ts; });
               if (!l.length) { h += '<td>—</td>'; continue; }
               var pre = l.reduce(function (s0, p) { return s0 + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s0, p) { return s0 + p.aciertos; }, 0);
               h += '<td>Nivel ' + fmt1(l[l.length - 1].nivel) + ' · ' + (pre ? Math.round(100 * ac / pre) : 0) + ' % (' + l.length + ')</td>';
             }
-            var jfs = ps.filter(function (p) { return p.modo === 'JF' && String(p.lista) === String(k); }), vic = jfs.filter(function (p) { return p.puntos === 1; }).length;
+            var jfs = ps.filter(function (p) { return p.modo === 'JF' && ((p.grupo || '') + '|' + p.lista) === k; }), vic = jfs.filter(function (p) { return p.puntos === 1; }).length;
             h += '<td>' + (jfs.length ? (vic ? '👑 vencido' : 'derrotado') + ' (' + jfs.length + ' intento/s)' : '—') + '</td></tr>';
           });
           cuerpo.innerHTML = h + '</tbody></table>';
         } else if (tab === 'partidas') {
           if (!ps.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones guardadas.</p>'; return; }
-          var h2 = '<table class="tabla"><thead><tr><th>Nº</th><th>Tema</th><th>Fecha y hora</th><th>Preguntas</th><th>Aciertos</th><th>Errores</th><th>%</th><th>Nivel</th><th>Refuerzos</th><th>Código</th></tr></thead><tbody>';
-          ps.forEach(function (p) { h2 += '<tr><td>' + p.lista + '</td><td>' + nombreSesion(p) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + (p.modo === 'JF' ? '—' : fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel)) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
+          var h2 = '<table class="tabla"><thead><tr><th>Grupo</th><th>Nº</th><th>Tema</th><th>Fecha y hora</th><th>Preguntas</th><th>Aciertos</th><th>Errores</th><th>%</th><th>Nivel</th><th>Refuerzos</th><th>Código</th></tr></thead><tbody>';
+          ps.forEach(function (p) { h2 += '<tr><td>' + (etqGrupo(p.grupo) || '—') + '</td><td>' + p.lista + '</td><td>' + nombreSesion(p) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + (p.modo === 'JF' ? '—' : fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel)) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
           cuerpo.innerHTML = h2 + '</tbody></table>';
         } else if (tab === 'exportar') {
           cuerpo.innerHTML = '<p>' + ps.length + ' partida(s) guardada(s) en este dispositivo.</p>' +
@@ -2745,14 +2800,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     }
   };
 
-  var MODELO_HTML = '<div class="modelo"><h3>Qué es</h3><p>Repaso de cálculo mental con números enteros. Cada alumno entra con su número de lista, <b>elige un tema</b> (sumas y restas sin paréntesis, con paréntesis, multiplicaciones y divisiones, potencias sencillas, operaciones combinadas) y practica sin reloj. El nivel (1 a 10) se ajusta solo dentro del tema.</p>' +
+  var MODELO_HTML = '<div class="modelo"><h3>Qué es</h3><p>Repaso de cálculo mental con números enteros. Cada alumno elige su curso (1.º-3.º ESO) y grupo (A-G), escribe su número de lista, <b>elige un tema</b> (sumas y restas sin paréntesis, con paréntesis, multiplicaciones y divisiones, potencias sencillas, operaciones combinadas) y practica sin reloj. El nivel (1 a 10) se ajusta solo dentro del tema.</p>' +
     '<h3>Cómo recoger los resultados de la clase</h3><ol>' +
     '<li><b>Un iPad compartido:</b> en «Exportar y datos», «Descargar CSV» o «Copiar resumen (Excel)».</li>' +
     '<li><b>Un iPad por alumno, solo el código:</b> al terminar, el alumno pulsa «Enviar a mi profesor» o te enseña el código. Los pegas, uno por línea, en «Decodificar».</li>' +
     '<li><b>Un iPad por alumno, con todo el detalle:</b> en cada iPad, «Exportar todas las partidas»; pega el texto en «Importar» de tu iPad. Se fusionan sin duplicados.</li></ol>' +
     '<h3>Mapa y Jefe Final</h3><p>La portada es un mapa con los 5 temas como mundos y el nivel (1 a 10) de cada uno. El castillo del Jefe Final se abre cuando el alumno tiene <b>nivel 6 o más en los 5 mundos</b>. El combate son 20 preguntas mezcladas (4 de cada tema, niveles 6 a 8), con 5 vidas: cada fallo o «No sé» quita una; con 0 vidas pierde, y si llega al final con alguna vida, gana. Se puede repetir. Queda registrado en el panel y en el CSV como «Jefe Final (victoria/derrota)».</p>' +
     '<h3>Refuerzo</h3><p>Si el alumno falla 4 de las últimas 6 preguntas (con al menos 5 respondidas), se activa el refuerzo: baja 2 niveles, se muestra el resumen de la regla y se repite hasta acertar 3 seguidas. Las preguntas falladas vuelven 3 preguntas después con otros números.</p>' +
-    '<h3>Código de resultado</h3><p>El código <code>L17-RP3-15-3-62-261124-1542-K7M</code> es: lista 17, tema 3, 15 aciertos, 3 errores, nivel 6,2, fecha 24/11/2026 15:42 y 3 caracteres de control (detectan erratas; no es una firma).</p>' +
+    '<h3>Código de resultado</h3><p>El código <code>L2C17-RP3-15-3-62-261124-1542-K7M</code> es: curso y grupo 2.º C, lista 17, tema 3, 15 aciertos, 3 errores, nivel 6,2, fecha 24/11/2026 15:42 y 3 caracteres de control (detectan erratas; no es una firma).</p>' +
     '<h3>Datos y PIN</h3><p>Los datos se guardan solo en este dispositivo (navegador), incluido el progreso de cada alumno en cada tema. Tras 3 PIN erróneos el panel se bloquea 30 s y el bloqueo se duplica en cada fallo siguiente.</p>' +
     '<details><summary>Modelo adaptativo (para el curioso)</summary>' +
     '<p>En cada tema se mantiene una distribución de probabilidad sobre la capacidad θ del alumno (rejilla de 0 a 12). Tras cada respuesta se aplica la regla de Bayes con <code>P(acierto | θ, d) = 0,05 + 0,95 · σ((θ − d)/s)</code>. Se busca el nivel con ≈ 72 % de probabilidad de acierto, sin saltar más de ±1 nivel entre preguntas. Al volver a un tema se retoma algo por debajo del nivel guardado para afianzar.</p></details></div>';
@@ -2776,6 +2831,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     });
     $('btn-ayuda').addEventListener('click', Modal.ayuda);
     $('btn-cambiar').addEventListener('click', UI.irLista);
+    $('btn-curso').addEventListener('click', function () { Sonido.despertar(); UI.irCurso(); });
+    $('p-curso').addEventListener('click', function (ev) {
+      var b = ev.target.closest ? ev.target.closest('button') : null; if (!b) return;
+      if (ev.detail && ahoraMs() < UI.bloqueoHasta) return;
+      if (b.hasAttribute('data-curso')) { UI.selCurso = b.getAttribute('data-curso'); UI.pintarCurso(); Sonido.tecla(); }
+      else if (b.hasAttribute('data-grupo')) { UI.selGrupo = b.getAttribute('data-grupo'); UI.pintarCurso(); Sonido.tecla(); }
+      else if (b.id === 'curso-sig' && UI.selCurso && UI.selGrupo) { Sonido.despertar(); grupoActual = UI.selCurso + UI.selGrupo; Almacen.setUltimo(grupoActual); UI.irLista(); }
+    });
     $('btn-pausa').addEventListener('click', UI.pausar);
     $('btn-salir').addEventListener('click', UI.salir);
     $('fbe-ok').addEventListener('click', function () { UI.bloquear(); avanzar(); });
@@ -2834,7 +2897,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     $('modal').addEventListener('click', function (e) { if (e.target === $('modal') && Modal.cancel && UI.ctx === 'pin') Modal.cancel(); });
     window.addEventListener('resize', function () { if (UI.pant === 'juego' && J && J.q) UI.ajustarExpr(); });
     UI.listo = true;
-    UI.irLista();
+    UI.irCurso();
     if (typeof setInterval !== 'undefined') UI.tIntervalo = setInterval(tick, 100);
     Nieve.iniciar();
   };
