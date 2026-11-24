@@ -26,6 +26,7 @@
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
+  --bg1:#1d5247;--bg2:#10322c;--bg3:#0a211d;--cielo1:#5cc8ff;--cielo2:#a8e6ff;--suelo1:#7bd36b;--suelo2:#4fae4a;--col1:#6bc45f;--col2:#3f9d46;--sol:#ffe27a;
   --noche:#10322c;--noche2:#1d5247;--rojo:#d62839;--verde:#157a45;--verde-s:#0d4f2c;--oro:#ffe27a;--tiza:#f3f1e7;--tiza2:#b9d8cf;--acento:#ffe27a;
   --tinta:#12263f;--papel:#f8fbff;--azul:#2d6cdf;--suave:#5a6e8a;
   --tecla:clamp(56px,8.4vh,84px);
@@ -35,7 +36,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--noche);color:#ff
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
   overscroll-behavior:none;-webkit-text-size-adjust:100%}
-body{background:radial-gradient(ellipse at 30% 20%,#1d5247 0%,#10322c 60%,#0a211d 100%) fixed}
+body{background:radial-gradient(ellipse at 30% 20%,var(--bg1) 0%,var(--bg2) 60%,var(--bg3) 100%) fixed}
 #nieve{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0}
 #app{position:fixed;top:0;left:0;right:0;bottom:0;height:100%;z-index:1;display:flex;flex-direction:column;
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
@@ -114,6 +115,19 @@ h1,h2,h3{margin:0}
 .sacudir{animation:sacudir .35s}
 @keyframes sacudir{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 @media (orientation:landscape) and (min-width:700px){.lista-grid{grid-template-columns:1fr 1fr}}
+
+/* temáticas visuales (cada alumno elige la suya) */
+body[data-tema="deportes"]{--bg1:#0d3b66;--bg2:#0a2540;--bg3:#06182b;--noche:#0a2540;--noche2:#0d3b66;--acento:#ffb703;--oro:#ffd166;--tiza2:#9fd3f5;--cielo1:#6ec6ff;--cielo2:#d6f1ff;--suelo1:#f4a261;--suelo2:#e07a3f;--col1:#f4a261;--col2:#e76f51;--sol:#ffe66d}
+body[data-tema="kawaii"]{--bg1:#8a3a6e;--bg2:#5e2450;--bg3:#3b1533;--noche:#5e2450;--noche2:#8a3a6e;--acento:#ffc8e6;--oro:#ffd6f0;--tiza2:#ffc2e2;--cielo1:#ffd1ec;--cielo2:#fff0f8;--suelo1:#b8f2d0;--suelo2:#8fe3b5;--col1:#ffb3d9;--col2:#ff8fc4;--sol:#fff3a0}
+body[data-tema="videojuegos"]{--bg1:#2b1b5e;--bg2:#150d33;--bg3:#0a0620;--noche:#150d33;--noche2:#2b1b5e;--acento:#00f5d4;--oro:#fee440;--tiza2:#9be7ff;--cielo1:#3a0ca3;--cielo2:#7209b7;--suelo1:#4cc9f0;--suelo2:#4361ee;--col1:#f72585;--col2:#b5179e;--sol:#fee440}
+body[data-tema="naturaleza"]{--bg1:#1e4d2b;--bg2:#123524;--bg3:#0b2016;--noche:#123524;--noche2:#1e4d2b;--acento:#d9f99d;--oro:#fde68a;--tiza2:#b7e4c7;--cielo1:#8ecae6;--cielo2:#e0f4ff;--suelo1:#95d5b2;--suelo2:#52b788;--col1:#74c69d;--col2:#40916c;--sol:#ffe66d}
+body[data-tema="magia"]{--bg1:#3b1f6e;--bg2:#24123f;--bg3:#130a24;--noche:#24123f;--noche2:#3b1f6e;--acento:#ffd166;--oro:#ffd166;--tiza2:#d0b8ff;--cielo1:#5a3d9a;--cielo2:#c4a7ff;--suelo1:#3d348b;--suelo2:#2a2370;--col1:#7b5ea7;--col2:#4d3a82;--sol:#f1e4a6}
+.mapa svg .sol{fill:var(--sol)}.mapa svg .col1{fill:var(--col1)}.mapa svg .col2{fill:var(--col2)}
+.heroe-emo{display:block;font-size:clamp(30px,4.4vw,52px);line-height:1;text-align:center;filter:drop-shadow(0 3px 0 rgba(0,0,0,.35))}
+.temas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0}
+.tema-card{display:flex;flex-direction:column;align-items:center;gap:4px;border:4px solid transparent;border-radius:16px;padding:10px 6px;color:#fff;font-weight:800;text-align:center;min-height:96px;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.tema-card .ic{font-size:34px;line-height:1}.tema-card small{font-weight:600;font-size:12.5px;opacity:.95}
+.tema-card.sel{border-color:#fff;box-shadow:0 0 0 4px var(--acento),0 4px 0 rgba(0,0,0,.35)}
 
 /* gamificación: partículas, medallas, llama de racha y transiciones entre cuentas */
 #fx{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
@@ -389,7 +403,7 @@ textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas
 .mapa-resumen{display:flex;gap:8px;flex-wrap:wrap;font-weight:800;font-size:clamp(14px,2vmin,18px)}
 .mapa-resumen span{background:rgba(0,0,0,.35);border:2px solid var(--tiza2);border-radius:999px;padding:5px 12px;white-space:nowrap}
 .mapa{position:relative;width:100%;max-width:1040px;aspect-ratio:5/3;border-radius:22px;overflow:hidden;border:4px solid var(--tiza);
-  background:linear-gradient(180deg,#5cc8ff 0%,#a8e6ff 52%,#7bd36b 52.2%,#4fae4a 100%);box-shadow:0 6px 0 rgba(0,0,0,.35)}
+  background:linear-gradient(180deg,var(--cielo1) 0%,var(--cielo2) 52%,var(--suelo1) 52.2%,var(--suelo2) 100%);box-shadow:0 6px 0 rgba(0,0,0,.35)}
 .mapa svg.fondo{position:absolute;inset:0;width:100%;height:100%}
 .nodo{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:3px;
   background:none;border:0;padding:0;color:#10322c;width:clamp(96px,17%,170px);text-align:center}
@@ -505,6 +519,7 @@ body.jefe .tarjeta .cat{color:#7b1fa2}
       <div class="sala" id="tro-cuerpo"></div>
       <div class="fila-botones">
         <button class="btn verde" id="tro-volver" type="button">🗺 Volver al mapa</button>
+        <button class="btn" id="tro-tema" type="button">🎨 Cambiar tema</button>
         <button class="btn" id="tro-copia" type="button">💾 Copia de seguridad</button>
       </div>
     </section>
@@ -1594,7 +1609,13 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     guardar: function () { try { localStorage.setItem(this.clave, JSON.stringify(this.mem)); return true; } catch (e) { return false; } },
     anadir: function (p) { this.mem.partidas.push(p); this.guardar(); },
     partidas: function () { return this.mem.partidas.slice(); },
-    borrar: function () { this.mem.partidas = []; this.guardar(); },
+    borrar: function () { this.mem.partidas = []; this.guardar(); },                       // solo sesiones: el progreso (niveles, medallas, jefe) se conserva
+    borrarTodo: function () { var pin = this.mem.pin, mute = this.mem.mute; this.mem = { partidas: [], mute: mute, pin: pin || { f: 0, hasta: 0 }, prog: {} }; this.guardar(); },
+    // iPad personal: se vincula al primer alumno que confirma su identidad; solo el profesorado (PIN) puede cambiarlo
+    ajustes: function () { var a = this.mem.ajustes; return { personal: !a || a.personal !== false }; },
+    setPersonal: function (v) { this.mem.ajustes = { personal: !!v }; this.guardar(); },
+    dueno: function () { var d = this.mem.dueno; return (d && grupoValido(d.g) && d.l >= 1 && d.l <= LISTA_MAX) ? d : null; },
+    setDueno: function (g, l) { this.mem.dueno = g ? { g: g, l: l } : null; this.guardar(); },
     // progreso por alumno y tema: { theta, n, ts }
     prog: function (lista, tema) { return (this.mem.prog || {})[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] || null; },
     setProg: function (lista, tema, v) { if (!this.mem.prog) this.mem.prog = {}; this.mem.prog[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] = v; this.guardar(); },
@@ -2036,7 +2057,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
 
   /* ---- copia de seguridad: progreso (niveles, medallas, jefe) + sesiones de un alumno o de todo el dispositivo ----
    *  Texto «MP1:…» (progreso) y «MN1:…» (sesiones), ambos con control de erratas. Al restaurar se FUSIONA: no pisa lo más reciente. */
-  var CLAVE_PROG = /^(?:([1-3][A-G])\|)?(\d{1,2})-([1-5JM])$/;
+  var CLAVE_PROG = /^(?:([1-3][A-G])\|)?(\d{1,2})-([1-5JMT])$/;
   function copiaDatos(g, l) {                                  // g === null: todo el dispositivo
     var todo = g === null || g === undefined, pref = todo ? null : (g ? g + '|' : '') + l + '-', prog = {};
     Object.keys(Almacen.mem.prog || {}).forEach(function (k) { if (todo || k.indexOf(pref) === 0) prog[k] = Almacen.mem.prog[k]; });
@@ -2048,6 +2069,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var m = CLAVE_PROG.exec(k), num = function (x) { return typeof x === 'number' && isFinite(x); };
     if (!m || !v || typeof v !== 'object') return null;
     if (m[3] === 'J') return { vencido: !!v.vencido, mejor: num(v.mejor) ? clamp(v.mejor, 0, 20) : 0, intentos: num(v.intentos) ? clamp(v.intentos, 0, 999) : 0, ts: num(v.ts) ? v.ts : 0 };
+    if (m[3] === 'T') return (typeof v.v === 'string' && /^[a-z]{3,12}$/.test(v.v)) ? { v: v.v, ts: num(v.ts) ? v.ts : 0 } : null;
     if (m[3] === 'M') { var mm = {}; if (v.m && typeof v.m === 'object') Object.keys(v.m).forEach(function (id) { if (/^[a-z0-9]{2,5}$/.test(id) && num(v.m[id])) mm[id] = clamp(Math.round(v.m[id]), 0, 999); }); return { m: mm, ts: num(v.ts) ? v.ts : 0 }; }
     if (!num(v.theta)) return null;
     return { theta: clamp(v.theta, 1, 10), n: num(v.n) ? clamp(v.n, 0, 99999) : 0, ts: num(v.ts) ? v.ts : 0 };
@@ -2285,6 +2307,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
     generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
     jefeEstado: jefeEstado,
+    dueno: function () { return Almacen.dueno(); }, fijarDueno: function (g, l) { Almacen.setDueno(g, l); }, personal: function (v) { if (v !== undefined) Almacen.setPersonal(v); return Almacen.ajustes().personal; }, borrarTodo: function () { Almacen.borrarTodo(); },
     copiaDatos: copiaDatos, restaurarCopia: restaurarCopia,
     medallas: function () { return medallasAlumno(); },
     fijarGrupo: function (g) { grupoActual = grupoValido(g) ? g : ''; },
@@ -2368,10 +2391,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   UI.medalla = function (id) {
     var m = null; MEDALLAS.forEach(function (x) { if (x.id === id) m = x; });
     if (!m) return;
-    var nueva = ganarMedalla(id);
-    UI.bannerMedalla(m.ic, m.n, m.d, nueva, '');
+    var nueva = ganarMedalla(id), mv = MV(m);
+    UI.bannerMedalla(mv.ic, mv.n, m.d, nueva, '');
     Sonido.medalla();
-    UI.explosion($('resp') || document.body, [m.ic, '✨', '⭐', '🎉'], 14);
+    UI.explosion($('resp') || document.body, [mv.ic, VIS.fx[0], VIS.fx[1], '🎉'], 14);
   };
   UI.estanteHTML = function () {
     var got = medallasAlumno();
@@ -2385,7 +2408,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       [{ t: 'Cerrar', cls: 'verde', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); } });
   };
   function htmlMedallasSesion(ids) {
-    return '<div class="res-medallas">' + ids.map(function (id) { var mm = MEDALLAS.filter(function (x) { return x.id === id; })[0]; return mm ? '<span>' + mm.ic + ' ' + esc(mm.n) + '</span>' : ''; }).join('') + '</div>';
+    return '<div class="res-medallas">' + ids.map(function (id) { var mm = MEDALLAS.filter(function (x) { return x.id === id; })[0]; var mv = mm && MV(mm); return mm ? '<span>' + mv.ic + ' ' + esc(mv.n) + '</span>' : ''; }).join('') + '</div>';
   }
   /* --- sala de trofeos, copia de seguridad y recuperación --- */
   UI.copiarTexto = function (txt, ok, mal) {
@@ -2425,17 +2448,18 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var pre = 0, ac = 0, rac = 0; ps.forEach(function (p) { pre += p.aciertos + p.errores + (p.blancos || 0); ac += p.aciertos; if (p.mejorRacha > rac) rac = p.mejorRacha; });
     var got = medallasAlumno(), jf = jefeEstado(N), nm = Object.keys(got).length, i, niv = [0], listos = 0;
     for (i = 1; i <= 5; i++) { niv[i] = nivelTema(N, i); if (niv[i] >= 6) listos++; }
-    $('tro-titulo').textContent = '🏆 Sala de trofeos · ' + etqAlumno(grupoActual, N);
+    UI.aplicarTema(temaDelAlumno());
+    $('tro-titulo').textContent = VIS.ic + ' ' + VIS.sala + ' · ' + etqAlumno(grupoActual, N);
     var h = '<div class="sala-stats"><span>📝 ' + ps.length + ' sesiones</span><span>❓ ' + pre + ' preguntas</span><span>🎯 ' + (pre ? Math.round(100 * ac / pre) : 0) + ' % de acierto</span><span>🔥 racha máx. ' + rac + '</span><span>⭐ ' + listos + '/5 mundos con nivel 6</span></div>';
     h += '<div class="vitrina"><h2>Copas de los mundos</h2><div class="balda">';
     for (i = 1; i <= 5; i++) {
       var n = niv[i], tier = n >= 9 ? ['🥇', 'oro'] : (n >= 6 ? ['🥈', 'plata'] : (n >= 3 ? ['🥉', 'bronce'] : null));
-      h += '<div class="trofeo ' + (tier ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (tier ? '🏆' : '🔒') + (tier ? '<i>' + tier[0] + '</i>' : '') + '</span><b>' + MUNDOS[i] + '</b><small>' + (tier ? 'Copa de ' + tier[1] + ' · nivel ' + n : (n ? 'Nivel ' + n + ' (bronce en 3)' : 'Sin empezar')) + '</small></div>';
+      h += '<div class="trofeo ' + (tier ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (tier ? VIS.copa : '🔒') + (tier ? '<i>' + tier[0] + '</i>' : '') + '</span><b>' + MUNDOS[i] + '</b><small>' + (tier ? VIS.copaN + ' de ' + tier[1] + ' · nivel ' + n : (n ? 'Nivel ' + n + ' (bronce en 3)' : 'Sin empezar')) + '</small></div>';
     }
     h += '</div></div>';
-    h += '<div class="vitrina"><h2>Trofeo del Jefe Final</h2><div class="balda"><div class="trofeo ' + (jf.vencido ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (jf.vencido ? '👑' : '🔒') + '</span><b>Corona de Lord Negativo</b><small>' + (jf.vencido ? 'Vencido · mejor ' + jf.mejor + '/20 · ' + jf.intentos + ' intento(s)' : (jf.abierto ? '¡El castillo está abierto!' : 'Nivel 6 en los 5 mundos')) + '</small></div></div></div>';
+    h += '<div class="vitrina"><h2>Trofeo del Jefe Final</h2><div class="balda"><div class="trofeo ' + (jf.vencido ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (jf.vencido ? VIS.corona : '🔒') + '</span><b>' + esc(VIS.coronaN) + '</b><small>' + (jf.vencido ? 'Vencido · mejor ' + jf.mejor + '/20 · ' + jf.intentos + ' intento(s)' : (jf.abierto ? '¡El castillo está abierto!' : 'Nivel 6 en los 5 mundos')) + '</small></div></div></div>';
     h += '<div class="vitrina"><h2>Medallas · ' + nm + ' de ' + MEDALLAS.length + '</h2><div class="balda">' + MEDALLAS.map(function (m) {
-      return '<div class="trofeo ' + (got[m.id] ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (got[m.id] ? m.ic : '🔒') + '</span><b>' + esc(m.n) + (got[m.id] > 1 ? ' ×' + got[m.id] : '') + '</b><small>' + esc(m.d) + '</small></div>';
+      return '<div class="trofeo ' + (got[m.id] ? 'si' : 'no') + '"><span class="ic" aria-hidden="true">' + (got[m.id] ? MV(m).ic : '🔒') + '</span><b>' + esc(MV(m).n) + (got[m.id] > 1 ? ' ×' + got[m.id] : '') + '</b><small>' + esc(m.d) + '</small></div>';
     }).join('') + '</div></div>';
     h += '<p class="sala-nota">Tu progreso se guarda en <b>esta iPad</b>. Haz de vez en cuando una 💾 copia de seguridad para no perder nada.</p>';
     $('tro-cuerpo').innerHTML = h;
@@ -2500,7 +2524,16 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     UI.mostrar('p-lista');
   };
   /* --- selector de curso (1.º-3.º ESO) y grupo (A-G): primera pantalla --- */
+  UI.vinculada = function () { return Almacen.ajustes().personal ? Almacen.dueno() : null; };
+  // cambiar de alumno: en una iPad vinculada solo con el PIN del profesorado
+  UI.cambiarAlumno = function (destino) {
+    if (!UI.vinculada()) { destino(); return; }
+    Modal.pedirPin(function () { Almacen.setDueno(null); alumnoActual = null; UI.irCurso(); });
+  };
   UI.irCurso = function () {
+    var dv = UI.vinculada();
+    if (!dv) { alumnoActual = null; UI.aplicarTema('pizarra'); }
+    if (dv) { grupoActual = dv.g; alumnoActual = dv.l; UI.irMenu(); return; }
     alumnoActual = null;
     var u = Almacen.ultimo() || grupoActual || '';
     UI.selCurso = grupoValido(u) ? u.charAt(0) : ''; UI.selGrupo = grupoValido(u) ? u.charAt(1) : '';
@@ -2516,7 +2549,58 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   var MUNDOS = ['', 'Valle de las Sumas', 'Bosque de los Paréntesis', 'Montañas Multiplicadoras', 'Cueva de las Potencias', 'Volcán de las Combinadas'];
   var POS = [null, [10, 68], [27, 32], [45, 66], [63, 30], [79, 64]];      // % del mapa (x, y) de cada mundo
   var POS_CASTILLO = [92, 28];
+  /* --- temáticas visuales: cada alumno elige la suya (colores, mundos, héroe, medallas y trofeos) --- */
+  var ICO0 = {}; (function () { for (var q = 1; q <= 5; q++) ICO0[q] = TEMA_ICONO[q]; })();
+  var VISUAL = {
+    pizarra: { nombre: 'Pizarra', ic: '📐', desc: 'El clásico de mates', bg: ['#1d5247', '#10322c', '#0a211d'], mundos: MUNDOS.slice(1), iconos: [ICO0[1], ICO0[2], ICO0[3], ICO0[4], ICO0[5]], heroe: null,
+      sala: 'Sala de trofeos', copa: '🏆', copaN: 'Copa', corona: '👑', coronaN: 'Corona de Lord Negativo', castillo: '🏰', fx: ['⭐', '✨', '➕'], fx2: ['🔥', '⭐', '✨'], med: null },
+    deportes: { nombre: 'Deportes', ic: '⚽', desc: 'Campos, estadios y podios', bg: ['#0d3b66', '#0a2540', '#06182b'],
+      mundos: ['Campo de las Sumas', 'Cancha de los Paréntesis', 'Pista Multiplicadora', 'Estadio de las Potencias', 'Podio de las Combinadas'], iconos: ['⚽', '🏀', '🏐', '🎾', '🏁'], heroe: '🏃',
+      sala: 'Vestuario de campeones', copa: '🏆', copaN: 'Trofeo', corona: '🥇', coronaN: 'Copa de campeón de liga', castillo: '🏟️', fx: ['⚽', '⭐', '✨'], fx2: ['🔥', '🏅', '⚽'],
+      med: { r3: ['🥉', 'Calentamiento'], r5: ['🥈', 'Quinteto'], r10: ['🥇', 'Campeón'], r15: ['🏆', 'Leyenda del estadio'], r20: ['🏅', 'Mejor jugador'], n6: ['⭐', 'Fichaje estrella'], ref: ['💪', 'Remontada'], jefe: ['🏟️', 'Campeón de liga'] } },
+    kawaii: { nombre: 'Kawaii', ic: '🌸', desc: 'Dulce, rosa y adorable', bg: ['#8a3a6e', '#5e2450', '#3b1533'],
+      mundos: ['Jardín de las Sumas', 'Pastelería de los Paréntesis', 'Colina Multiplicadora', 'Bosque de las Potencias', 'Arcoíris de las Combinadas'], iconos: ['🌸', '🧁', '🍓', '🦄', '🌈'], heroe: '🐱',
+      sala: 'Cofre de tesoros kawaii', copa: '🌟', copaN: 'Estrella', corona: '👑', coronaN: 'Corona de cristal rosa', castillo: '🏯', fx: ['🌸', '💖', '✨'], fx2: ['💖', '🦄', '🌈'],
+      med: { r3: ['🍬', 'Caramelito'], r5: ['🍰', 'Tarta de racha'], r10: ['🌈', 'Arcoíris'], r15: ['🦄', 'Unicornio'], r20: ['👑', 'Realeza kawaii'], n6: ['🌟', 'Brillo estelar'], ref: ['💖', 'Corazón fuerte'], jefe: ['🎀', 'Vencedor de sombras'] } },
+    videojuegos: { nombre: 'Videojuegos', ic: '🎮', desc: 'Niveles, combos y neón', bg: ['#2b1b5e', '#150d33', '#0a0620'],
+      mundos: ['Mundo Píxel de las Sumas', 'Cueva de los Paréntesis', 'Torre Multiplicadora', 'Nave de las Potencias', 'Laberinto de las Combinadas'], iconos: ['🕹️', '💎', '🧱', '🚀', '🧩'], heroe: '🤖',
+      sala: 'Salón arcade de récords', copa: '💎', copaN: 'Gema', corona: '🎮', coronaN: 'Trofeo Final Boss', castillo: '🏰', fx: ['🪙', '⭐', '💥'], fx2: ['🔥', '💎', '🪙'],
+      med: { r3: ['🪙', 'Combo x3'], r5: ['🔥', 'Combo x5'], r10: ['⚡', 'Modo imparable'], r15: ['🏆', 'Pro player'], r20: ['👑', 'Leyenda arcade'], n6: ['💎', 'Gema de nivel'], ref: ['🛡️', 'Segunda vida'], jefe: ['🎮', 'Final boss'] } },
+    naturaleza: { nombre: 'Naturaleza', ic: '🌿', desc: 'Bosques, montañas y mar', bg: ['#1e4d2b', '#123524', '#0b2016'],
+      mundos: ['Prado de las Sumas', 'Bosque de los Paréntesis', 'Montaña Multiplicadora', 'Cueva de las Potencias', 'Océano de las Combinadas'], iconos: ['🌼', '🌲', '⛰️', '🦇', '🌊'], heroe: '🦊',
+      sala: 'Herbario de logros', copa: '🌻', copaN: 'Flor', corona: '🦁', coronaN: 'Corona de hojas', castillo: '🌋', fx: ['🍀', '🌼', '✨'], fx2: ['🔥', '🦋', '🌻'],
+      med: { r3: ['🌱', 'Brote'], r5: ['🌿', 'Hojas nuevas'], r10: ['🌳', 'Árbol fuerte'], r15: ['🦅', 'Águila'], r20: ['🌍', 'Guardián del planeta'], n6: ['🌻', 'Floración'], ref: ['🍃', 'Raíces firmes'], jefe: ['🦁', 'Rey de la selva'] } },
+    magia: { nombre: 'Magia', ic: '🧙', desc: 'Hechizos, pociones y dragones', bg: ['#3b1f6e', '#24123f', '#130a24'],
+      mundos: ['Biblioteca de las Sumas', 'Pociones de los Paréntesis', 'Torre Multiplicadora', 'Mazmorra de las Potencias', 'Dragón de las Combinadas'], iconos: ['📚', '🧪', '🔮', '🗝️', '🐉'], heroe: '🧙',
+      sala: 'Torre de los hechizos', copa: '🔮', copaN: 'Cetro', corona: '🪄', coronaN: 'Corona del archimago', castillo: '🏰', fx: ['✨', '🪄', '⭐'], fx2: ['🔥', '🔮', '✨'],
+      med: { r3: ['🪄', 'Primer hechizo'], r5: ['🔮', 'Bola de cristal'], r10: ['🧪', 'Maestro de pociones'], r15: ['🐉', 'Domadragones'], r20: ['🧙', 'Archimago'], n6: ['✨', 'Aprendiz estrella'], ref: ['🛡️', 'Escudo mágico'], jefe: ['👑', 'Rompehechizos'] } }
+  };
+  var VISUAL_IDS = ['pizarra', 'deportes', 'kawaii', 'videojuegos', 'naturaleza', 'magia'];
+  var VIS = VISUAL.pizarra;
+  UI.aplicarTema = function (id) {
+    var ok = !!VISUAL[id]; UI.visId = ok ? id : 'pizarra'; VIS = VISUAL[UI.visId];
+    document.body.setAttribute('data-tema', UI.visId);
+    for (var q = 1; q <= 5; q++) { MUNDOS[q] = VIS.mundos[q - 1]; TEMA_ICONO[q] = VIS.iconos[q - 1]; }
+    try { var mt = document.querySelector('meta[name="theme-color"]'); if (mt) mt.setAttribute('content', VIS.bg[1]); } catch (e) { /* nada */ }
+  };
+  function temaDelAlumno() { var t = (alumnoActual !== null) ? Almacen.prog(alumnoActual, 'T') : null; return (t && VISUAL[t.v]) ? t.v : 'pizarra'; }
+  function MV(m) { var o = VIS.med && VIS.med[m.id]; return o ? { ic: o[0], n: o[1] } : { ic: m.ic, n: m.n }; }
+  UI.abrirTemas = function () {
+    var act = temaDelAlumno();
+    Modal.abrir('<h2>🎨 Mi tema</h2><p>Elige cómo se ve tu juego: colores, mundos, medallas y trofeos. Puedes cambiarlo cuando quieras.</p><div class="temas-grid">' + VISUAL_IDS.map(function (id) {
+      var v = VISUAL[id];
+      return '<button type="button" class="tema-card' + (id === act ? ' sel' : '') + '" data-tema-v="' + id + '" style="background:linear-gradient(160deg,' + v.bg[0] + ',' + v.bg[2] + ')" aria-pressed="' + (id === act) + '"><span class="ic" aria-hidden="true">' + v.ic + '</span>' + esc(v.nombre) + '<small>' + esc(v.desc) + '</small></button>';
+    }).join('') + '</div>', [{ t: 'Cerrar', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); } });
+    $('modal-caja').onclick = function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-tema-v]') : null; if (!b) return;
+      var id = b.getAttribute('data-tema-v'); Almacen.setProg(alumnoActual, 'T', { v: id, ts: Date.now() });
+      Modal.cerrar(); $('modal-caja').onclick = null; Sonido.despertar(); Sonido.nivel();
+      if (UI.pant === 'trofeos') UI.irTrofeos(); else UI.irMenu();
+    };
+  };
+
   function heroeSVG() {
+    if (VIS && VIS.heroe) return '<span class="heroe-emo" aria-hidden="true">' + VIS.heroe + '</span>';
     return '<svg viewBox="0 0 40 52" aria-hidden="true"><rect x="4" y="2" width="32" height="46" rx="8" fill="#ffd23f" stroke="#10322c" stroke-width="3"/>' +
       '<rect x="9" y="7" width="22" height="14" rx="3" fill="#10322c"/><circle cx="16" cy="13" r="2.6" fill="#fff"/><circle cx="24" cy="13" r="2.6" fill="#fff"/><path d="M15 17 Q20 20 25 17" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
       '<g fill="#10322c"><circle cx="12" cy="29" r="2.6"/><circle cx="20" cy="29" r="2.6"/><circle cx="28" cy="29" r="2.6"/><circle cx="12" cy="37" r="2.6"/><circle cx="20" cy="37" r="2.6"/><circle cx="28" cy="37" r="2.6"/></g></svg>';
@@ -2524,11 +2608,12 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function fondoMapaSVG() {
     var pts = POS.slice(1).concat([POS_CASTILLO]).map(function (q) { return (q[0]) + ',' + (q[1] * 0.6); }).join(' ');
     return '<svg class="fondo" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">' +
-      '<circle cx="90" cy="9" r="5" fill="#ffe27a"/><g fill="#fff" opacity=".9"><ellipse cx="20" cy="8" rx="8" ry="2.6"/><ellipse cx="25" cy="6.6" rx="5" ry="2.4"/><ellipse cx="58" cy="11" rx="9" ry="2.8"/><ellipse cx="64" cy="9.4" rx="5" ry="2.4"/></g>' +
-      '<path d="M0 32 Q12 20 24 32 T48 32 T72 31 T100 30 L100 60 L0 60Z" fill="#6bc45f" opacity=".55"/><path d="M0 60 L0 40 Q15 30 30 40 T60 40 T100 38 L100 60Z" fill="#3f9d46" opacity=".5"/>' +
+      '<circle class="sol" cx="90" cy="9" r="5"/><g fill="#fff" opacity=".9"><ellipse cx="20" cy="8" rx="8" ry="2.6"/><ellipse cx="25" cy="6.6" rx="5" ry="2.4"/><ellipse cx="58" cy="11" rx="9" ry="2.8"/><ellipse cx="64" cy="9.4" rx="5" ry="2.4"/></g>' +
+      '<path d="M0 32 Q12 20 24 32 T48 32 T72 31 T100 30 L100 60 L0 60Z" class="col1" opacity=".55"/><path d="M0 60 L0 40 Q15 30 30 40 T60 40 T100 38 L100 60Z" class="col2" opacity=".5"/>' +
       '<polyline points="' + pts + '" fill="none" stroke="#fff6c9" stroke-width="1.6" stroke-dasharray="2.2 2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" style="stroke-width:5px"/></svg>';
   }
   UI.irMenu = function () {
+    UI.aplicarTema(temaDelAlumno());
     $('saludo').textContent = '¡Hola, número ' + alumnoActual + '!';
     var niv = [0], i, sum = 0, listos = 0, sug = 0, minN = 99;
     for (i = 1; i <= 5; i++) { niv[i] = nivelTema(alumnoActual, i); sum += niv[i]; if (niv[i] >= 6) listos++; else if (niv[i] < minN) { minN = niv[i]; sug = i; } }
@@ -2544,11 +2629,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     var cest = jf.vencido ? 'vencido' : (jf.abierto ? 'abierto' : 'bloq');
     var ctxt = jf.vencido ? '👑 Vencido · mejor ' + jf.mejor + '/20' : (jf.abierto ? '¡Listo para el combate!' : '🔒 Nivel 6 en los 5 mundos');
     h += '<button type="button" class="nodo castillo ' + cest + (jf.abierto && !jf.vencido ? ' sugerido' : '') + '" style="--x:' + POS_CASTILLO[0] + '%;--y:' + POS_CASTILLO[1] + '%" data-jefe="1" aria-label="Castillo del Jefe Final. ' + ctxt + '">' +
-      '<span class="disco" aria-hidden="true">' + (jf.vencido ? '👑' : '🏰') + '</span><span class="nombre">Jefe Final</span><span class="nivel"><span>' + ctxt + '</span></span></button>';
+      '<span class="disco" aria-hidden="true">' + (jf.vencido ? VIS.corona : VIS.castillo) + '</span><span class="nombre">Jefe Final</span><span class="nivel"><span>' + ctxt + '</span></span></button>';
     var hp = jf.abierto ? POS_CASTILLO : POS[sug || 1];
     h += '<div class="heroe" style="--x:' + hp[0] + '%;--y:' + hp[1] + '%" aria-hidden="true">' + heroeSVG() + '</div>';
     $('mapa').innerHTML = h;
-    $('mapa-resumen').innerHTML = '<span>⭐ Mundos con nivel 6: ' + listos + '/5</span><span>🪙 ' + sum + '/50</span><span><button type="button" class="chip-med btn suave" id="btn-medallas" aria-label="Abrir mi sala de trofeos">🏆 Trofeos · 🏅 ' + Object.keys(medallasAlumno()).length + '/' + MEDALLAS.length + '</button></span><span>' + (jf.vencido ? '👑 Jefe vencido' : (jf.abierto ? '🏰 Jefe abierto' : '🔒 Jefe cerrado')) + '</span>';
+    $('mapa-resumen').innerHTML = '<span>⭐ Mundos con nivel 6: ' + listos + '/5</span><span>🪙 ' + sum + '/50</span><span><button type="button" class="chip-med btn suave" id="btn-medallas" aria-label="Abrir mi sala de trofeos">' + VIS.ic + ' Trofeos · 🏅 ' + Object.keys(medallasAlumno()).length + '/' + MEDALLAS.length + '</button></span><span><button type="button" class="chip-med btn suave" id="btn-tema" aria-label="Elegir mi tema">🎨 Mi tema</button></span><span>' + (jf.vencido ? VIS.corona + ' Jefe vencido' : (jf.abierto ? '🏰 Jefe abierto' : '🔒 Jefe cerrado')) + '</span>';
     $('mapa-sub').textContent = 'Elige un mundo para entrenar. Con nivel 6 o más en los 5 mundos se abre el castillo del Jefe Final.';
     if (jf.abierto) $('mapa-faltan').innerHTML = jf.vencido ? '👑 ¡Has vencido a Lord Negativo! Puedes volver a enfrentarte a él cuando quieras.' : '🏰 <b>¡Los 5 mundos superados!</b> El castillo está abierto: toca el castillo para enfrentarte a Lord Negativo.';
     else $('mapa-faltan').innerHTML = 'Para abrir el castillo te falta: ' + jf.faltan.map(function (f) { return '<b>Mundo ' + f.tema + '</b> (' + (f.nivel ? 'nivel ' + f.nivel + ' de 6' : 'sin empezar') + ')'; }).join(', ') + '.';
@@ -2600,8 +2685,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         UI.pintarLista('Escribe un número del 1 al ' + LISTA_MAX);
         var v = $('visor-lista'); v.classList.remove('sacudir'); void v.offsetWidth; v.classList.add('sacudir'); return;
       }
-      Modal.abrir('<h2>¿Eres el número ' + n + ' de ' + etqGrupo(grupoActual) + '?</h2><p>Comprueba que es el tuyo: tus resultados se guardan con este curso, grupo y número.</p>',
-        [{ t: 'No, corregir', fn: function () { Modal.cerrar(); } }, { t: 'Sí, soy yo', cls: 'verde', id: 'conf-si', fn: function () { Modal.cerrar(); alumnoActual = n; UI.irMenu(); } }],
+      Modal.abrir('<h2>¿Eres el número ' + n + ' de ' + etqGrupo(grupoActual) + '?</h2><p>Comprueba que es el tuyo: tus resultados se guardan con este curso, grupo y número.</p>' + (Almacen.ajustes().personal && !Almacen.dueno() ? '<p><b>🔒 Esta iPad quedará vinculada a ti.</b> Solo el profesorado podrá cambiarlo.</p>' : ''),
+        [{ t: 'No, corregir', fn: function () { Modal.cerrar(); } }, { t: 'Sí, soy yo', cls: 'verde', id: 'conf-si', fn: function () { Modal.cerrar(); alumnoActual = n; if (Almacen.ajustes().personal && !Almacen.dueno()) Almacen.setDueno(grupoActual, n); UI.irMenu(); } }],
         { defecto: 'conf-si', cancel: function () { Modal.cerrar(); } });
     }
   };
@@ -2738,7 +2823,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var sc = $('resp'), tj = document.querySelector('.tarjeta');
       sc.classList.remove('pop'); void sc.offsetWidth; sc.classList.add('pop');
       if (tj) { tj.classList.remove('brilla', 'tiembla'); void tj.offsetWidth; tj.classList.add('brilla'); }
-      UI.explosion(sc, J.racha >= 5 ? ['🔥', '⭐', '✨'] : ['⭐', '✨', '➕'], J.racha >= 5 ? 9 : 5);
+      UI.explosion(sc, J.racha >= 5 ? VIS.fx2 : VIS.fx, J.racha >= 5 ? 9 : 5);
       var idMed = { 3: 'r3', 5: 'r5', 10: 'r10', 15: 'r15', 20: 'r20' }[J.racha];
       if (idMed) setTimeout(function () { if (J && !J.terminada) UI.medalla(idMed); }, 350);
       else if (res.refuerzo === 'sale') setTimeout(function () { if (J && !J.terminada) UI.medalla('ref'); }, 350);
@@ -2933,7 +3018,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       else if (k === 'del') Modal.pinBuf = Modal.pinBuf.slice(0, -1);
       else if (k === 'ok') {
         var r = pinProbar(Modal.pinBuf); Modal.pinBuf = '';
-        if (r.ok) { Modal.panel(); return; }
+        if (r.ok) { var tras = Modal.tras; Modal.tras = null; if (tras) { Modal.cerrar(); tras(); } else Modal.panel(); return; }
         var m = $('pin-msg'), v = $('pin-visor');
         if (r.bloqueo > 0) {
           if (m) m.textContent = 'Demasiados intentos. Espera ' + r.bloqueo + ' s.';
@@ -2944,10 +3029,10 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       var vv = $('pin-visor'); if (vv) { vv.textContent = Modal.pinBuf ? new Array(Modal.pinBuf.length + 1).join('●') : 'PIN'; vv.classList.toggle('vacio', !Modal.pinBuf); vv.setAttribute('aria-label', Modal.pinBuf ? Modal.pinBuf.length + ' cifras escritas' : 'PIN vacío'); }
       if (k !== 'ok') { var mm = $('pin-msg'); if (mm && pinEstado().resto <= 0) mm.textContent = ''; }
     },
-    pedirPin: function () {
-      Modal.pinBuf = '';
+    pedirPin: function (tras) {
+      Modal.pinBuf = ''; Modal.tras = tras || null;
       var c = Modal.abrir('<h2>🔒 Profesorado</h2><div class="visor vacio pin-puntos" id="pin-visor" role="status" aria-label="PIN vacío">PIN</div><div class="msg" id="pin-msg" role="status" style="color:#a61e2d"></div><div id="tec-pin"></div>',
-        [{ t: 'Cancelar', fn: function () { Modal.cerrar(); } }], { sinFoco: true, cancel: function () { Modal.cerrar(); } });
+        [{ t: 'Cancelar', fn: function () { Modal.tras = null; Modal.cerrar(); } }], { sinFoco: true, cancel: function () { Modal.tras = null; Modal.cerrar(); } });
       Teclado.crear(c.querySelector('#tec-pin'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
       UI.ctx = 'pin';
       if (pinEstado().resto > 0) { Modal.pintarPinMsg(); Modal.tPin = setInterval(Modal.pintarPinMsg, 1000); }
@@ -3014,7 +3099,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
             '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-exp">📤 Exportar todas las partidas</button><button class="btn" type="button" id="pp-copia">💾 Copia completa (niveles, medallas y partidas)</button></div>' +
             '<textarea class="csv" id="pp-imp" placeholder="Pega aquí el texto exportado de otro iPad (puedes pegar varios, uno por línea)" aria-label="Texto exportado para importar" style="min-height:90px"></textarea>' +
             '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-impgo">📥 Importar</button></div></div>' +
-            '<div class="seccion"><div class="modal-botones" style="justify-content:flex-start"><button class="btn rojo" type="button" id="pp-borrar">🗑 Borrar datos</button></div></div>' +
+            '<div class="seccion"><h3>iPad personal</h3><p>' + (Almacen.ajustes().personal ? '<b>Activado</b>: la iPad se vincula al primer alumno que confirma su número y solo el profesorado (PIN) puede cambiarlo. ' + (Almacen.dueno() ? 'Vinculada a <b>' + etqAlumno(Almacen.dueno().g, Almacen.dueno().l) + '</b>.' : 'Ahora mismo no está vinculada.') : '<b>Desactivado</b>: cualquiera puede elegir cualquier número (iPad compartida).') + '</p>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-personal">' + (Almacen.ajustes().personal ? 'Desactivar (iPad compartida)' : 'Activar (iPad personal)') + '</button>' + (Almacen.dueno() ? '<button class="btn" type="button" id="pp-desv">🔓 Desvincular esta iPad</button>' : '') + '</div></div>' +
+            '<div class="seccion"><h3>Borrar</h3><p><b>Borrar sesiones</b> elimina solo las partidas guardadas (lo que ves en Resumen, Partidas y el CSV). <b>No toca</b> el nivel, las medallas ni el Jefe Final de los alumnos. <b>Restablecer iPad</b> borra TODO: sesiones, niveles, medallas, jefe, tema y vínculo.</p><div class="modal-botones" style="justify-content:flex-start"><button class="btn rojo" type="button" id="pp-borrar">🗑 Borrar sesiones</button><button class="btn rojo" type="button" id="pp-reset">⚠ Restablecer iPad (borra todo)</button></div></div>' +
             '<div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
         } else if (tab === 'decodificar') {
           cuerpo.innerHTML = '<p>Pega los códigos de resultado de tus alumnos (uno por línea) y pulsa «Decodificar». Se avisa de los códigos mal copiados o repetidos.</p>' +
@@ -3060,9 +3147,15 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         else if (b.id === 'pp-impgo') {
           var r = restaurarCopia($('pp-imp').value);
           aviso('Progreso restaurado: ' + r.prog + ' · sesiones importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
+        } else if (b.id === 'pp-personal') { Almacen.setPersonal(!Almacen.ajustes().personal); Modal.panel('exportar');
+        } else if (b.id === 'pp-desv') { Almacen.setDueno(null); Modal.panel('exportar');
+        } else if (b.id === 'pp-reset') {
+          Modal.abrir('<h2>⚠ ¿Restablecer esta iPad?</h2><p>Se borrará <b>TODO</b>: sesiones, niveles, medallas, Jefe Final, tema y la vinculación a un alumno. <b>No se puede deshacer.</b></p><p>Antes te conviene hacer una «Copia completa».</p>',
+            [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Hacer copia antes', fn: function () { Modal.panel('exportar'); } }, { t: 'Sí, borrar todo', cls: 'rojo', id: 'reset-si', fn: function () { Almacen.borrarTodo(); grupoActual = ''; alumnoActual = null; Modal.cerrar(); UI.irCurso(); } }],
+            { cancel: function () { Modal.panel('exportar'); } });
         } else if (b.id === 'pp-borrar') {
-          Modal.abrir('<h2>¿Borrar todos los datos?</h2><p>Se eliminarán todas las partidas y la clasificación de este dispositivo. <b>No se puede deshacer.</b></p><p>Antes de borrar, te conviene descargar el CSV o exportar las partidas.</p>',
-            [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Exportar antes', fn: function () { Modal.panel('exportar'); } }, { t: 'Sí, borrar todo', cls: 'rojo', id: 'borrar-si', fn: function () { Almacen.borrar(); Modal.panel('exportar'); } }],
+          Modal.abrir('<h2>¿Borrar las sesiones?</h2><p>Se eliminarán las partidas guardadas (Resumen, Partidas y CSV). <b>No se puede deshacer.</b> El nivel, las medallas y el Jefe Final de cada alumno se conservan.</p><p>Antes de borrar, te conviene descargar el CSV o exportar las partidas.</p>',
+            [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Exportar antes', fn: function () { Modal.panel('exportar'); } }, { t: 'Sí, borrar sesiones', cls: 'rojo', id: 'borrar-si', fn: function () { Almacen.borrar(); Modal.panel('exportar'); } }],
             { cancel: function () { Modal.panel('exportar'); } });
         } else if (b.id === 'dec-go') {
           var res = decodificarVarios($('dec-in').value), out = $('dec-out');
@@ -3121,7 +3214,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     Teclado.crear($('tec-lista'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
     Teclado.crear($('tec-juego'), { signo: true, fila: '<button type="button" class="tecla nose" data-k="nose">No sé</button><button type="button" class="tecla ok" data-k="ok" aria-label="Comprobar">✔ Comprobar</button>' });
     // estrella y luces del árbol de la escena de inicio encendidas
-    $('mapa-resumen').addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#btn-medallas')) { Sonido.despertar(); UI.irTrofeos(); } });
+    $('mapa-resumen').addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#btn-medallas')) { Sonido.despertar(); UI.irTrofeos(); } else if (e.target.closest && e.target.closest('#btn-tema')) { Sonido.despertar(); UI.abrirTemas(); } });
     $('mapa').addEventListener('click', function (e) {
       var j = e.target.closest ? e.target.closest('button[data-jefe]') : null;
       if (j) { Sonido.despertar(); UI.abrirJefe(); return; }
@@ -3129,8 +3222,9 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       Sonido.despertar(); iniciar('RP', alumnoActual, parseInt(b.getAttribute('data-tema'), 10));
     });
     $('btn-ayuda').addEventListener('click', Modal.ayuda);
-    $('btn-cambiar').addEventListener('click', UI.irLista);
+    $('btn-cambiar').addEventListener('click', function () { UI.cambiarAlumno(UI.irLista); });
     $('tro-volver').addEventListener('click', function () { UI.irMenu(); });
+    $('tro-tema').addEventListener('click', function () { Sonido.despertar(); UI.abrirTemas(); });
     $('tro-copia').addEventListener('click', function () { Sonido.despertar(); UI.abrirCopia(); });
     $('curso-recuperar').addEventListener('click', function () { Sonido.despertar(); UI.abrirRecuperar(); });
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* sin API */ }
@@ -3150,7 +3244,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       if (b.id === 'r-otra') { if (ultimoResultado.rec.modo === 'JF') iniciar('JF', alumnoActual); else iniciar('RP', alumnoActual, ultimoResultado.rec.tema); }
       else if (b.id === 'r-modo') UI.irMenu();
       else if (b.id === 'r-copia') UI.abrirCopia();
-      else if (b.id === 'r-alumno') UI.irLista();
+      else if (b.id === 'r-alumno') UI.cambiarAlumno(UI.irLista);
       else if (b.id === 'r-enviar') UI.enviar();
     });
     $('btn-sonido').addEventListener('click', function () { Sonido.despertar(); Sonido.mute = !Sonido.mute; Almacen.setMute(Sonido.mute); UI.pintarSonido(); if (!Sonido.mute) Sonido.tecla(); });
