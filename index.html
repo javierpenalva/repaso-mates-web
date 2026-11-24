@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#10322c">
+<title>Repaso de Mates</title>
+<!--
+  REPASO DE MATES v1 - repaso de cálculo mental con números enteros (1º-2º ESO)
+  Archivo único: HTML + CSS + JS, sin librerías ni recursos externos. Funciona sin internet.
+  Se genera con tests/build.cjs a partir de tests/src/ (ver ESPECIFICACION.md).
+
+  MODO DE PRUEBAS: solo con ?test=1 existe window.__JUEGO__ y se acepta ?seed=N (semilla). Sin ?test=1 se ignora (aula).
+
+  DECISIONES DE DISEÑO:
+    - El alumno ELIGE el tema a repasar antes de empezar (5 temas, cada uno con niveles 1-10).
+    - Dentro del tema el nivel sube si acierta (modelo bayesiano, ≈ 72 % de acierto previsto, salto máximo de 1 nivel).
+    - Refuerzo: si falla 4 de las últimas 6 (con al menos 5 respondidas) baja el nivel, muestra la regla y repite hasta acertar 3 seguidas.
+    - Las preguntas falladas vuelven más adelante con otros números.
+    - Sin reloj ni clasificación. Progreso guardado por número de lista y tema en este dispositivo.
+    - PIN de profesorado guardado como huella (hash) con bloqueo progresivo (3 fallos = 30 s, luego se duplica).
+    - CSV con separador ";" y BOM UTF-8 (Excel en español).
+-->
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --noche:#10322c;--noche2:#1d5247;--rojo:#d62839;--verde:#157a45;--verde-s:#0d4f2c;--oro:#ffe27a;--tiza:#f3f1e7;--tiza2:#b9d8cf;--acento:#ffe27a;
+  --tinta:#12263f;--papel:#f8fbff;--azul:#2d6cdf;--suave:#5a6e8a;
+  --tecla:clamp(56px,8.4vh,84px);
+}
+@supports (height:1dvh){:root{--tecla:clamp(56px,8.4dvh,84px)}}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--noche);color:#fff;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  overscroll-behavior:none;-webkit-text-size-adjust:100%}
+body{background:radial-gradient(ellipse at 30% 20%,#1d5247 0%,#10322c 60%,#0a211d 100%) fixed}
+#nieve{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:fixed;top:0;left:0;right:0;bottom:0;height:100%;z-index:1;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+@supports (height:1dvh){#app{height:100dvh}}
+button{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer}
+/* foco visible: selectores SEPARADOS (Safari < 15.4 descarta toda la regla si no entiende :focus-visible) */
+button:focus-visible{outline:4px solid var(--oro);outline-offset:3px}
+input:focus-visible{outline:4px solid var(--oro);outline-offset:2px}
+textarea:focus-visible{outline:4px solid var(--oro);outline-offset:2px}
+#modal-caja button:focus-visible{outline:4px solid #12263f;outline-offset:2px}
+#modal-caja textarea:focus-visible{outline:4px solid #12263f;outline-offset:2px}
+.tecla:focus-visible{outline:4px solid var(--oro);outline-offset:3px}
+input,textarea{font-size:16px;-webkit-user-select:text;user-select:text}
+sup{font-size:.55em;line-height:0;position:relative;top:-.85em;vertical-align:baseline;margin-left:1px}
+[hidden]{display:none!important}
+
+/* barra superior */
+#barra{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;min-height:56px}
+.logo{display:flex;align-items:center;gap:8px;background:none;border:0;padding:6px 8px;font-size:22px;font-weight:800;
+  color:#fff;letter-spacing:.2px;min-height:44px;white-space:nowrap;flex:0 1 auto;min-width:0}
+.logo span{text-shadow:0 2px 0 rgba(0,0,0,.35)}
+#chip-alumno{margin-left:auto;background:rgba(255,255,255,.16);border-radius:999px;padding:8px 16px;font-weight:700;font-size:18px;white-space:nowrap;flex:0 0 auto}
+.btn-barra{flex:0 0 auto;min-height:56px;min-width:56px;padding:0 16px;border-radius:14px;border:0;background:rgba(255,255,255,.2);font-weight:800;font-size:18px;color:#fff;white-space:nowrap}
+#btn-pausa{margin-left:auto}
+#btn-sonido{margin-left:auto;flex:0 0 auto;width:56px;height:56px;border-radius:50%;border:0;background:rgba(255,255,255,.18);font-size:28px}
+#chip-alumno:not([hidden])+#btn-sonido,#btn-salir:not([hidden])+#btn-sonido,#btn-pausa:not([hidden])+#btn-salir+#btn-sonido{margin-left:0}
+#btn-pausa:not([hidden])~#chip-alumno{margin-left:0}
+
+/* pantallas */
+#pantallas{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.pantalla{display:none;flex:1;min-height:0;flex-direction:column;padding:6px 16px 14px;position:relative}
+.pantalla.activa{display:flex}
+.pantalla.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+h1,h2,h3{margin:0}
+.titulo{font-size:clamp(30px,5.4vmin,56px);font-weight:900;text-align:center;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+.sub{font-size:clamp(18px,2.6vmin,26px);text-align:center;opacity:.95;margin:4px 0 0}
+
+/* botones */
+.btn{min-height:56px;padding:12px 22px;border-radius:16px;border:0;font-weight:800;font-size:20px;
+  background:#fff;color:var(--tinta);box-shadow:0 4px 0 #9fb3cc}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 #9fb3cc}
+.btn.rojo{background:var(--rojo);color:#fff;box-shadow:0 4px 0 #8c1722}
+.btn.verde{background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s)}
+.btn.oro{background:var(--oro);color:#3a2a00;box-shadow:0 4px 0 #b88a0c}
+.btn.suave{background:rgba(255,255,255,.18);color:#fff;box-shadow:none}
+.btn.pequeno{min-height:56px;font-size:18px;padding:10px 16px}
+
+/* teclado propio */
+.teclado{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tecla{height:var(--tecla);font-size:calc(var(--tecla)*.46);font-weight:800;border-radius:16px;border:0;
+  background:#fff;color:var(--tinta);box-shadow:0 4px 0 #9fb3cc;min-width:44px;padding:0}
+.tecla:active{transform:translateY(3px);box-shadow:0 1px 0 #9fb3cc;background:#e8f0fb}
+.tecla.acc{background:#ffe3a3;box-shadow:0 4px 0 #c79a2a}
+.tecla.ok{background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s);grid-column:span 2;font-size:calc(var(--tecla)*.36)}
+.tecla.nose{background:rgba(255,255,255,.88);font-size:calc(var(--tecla)*.30);color:#2f4766}
+.tecla.vacia{visibility:hidden}
+.tecla.entrar{grid-column:span 3;background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s);font-size:calc(var(--tecla)*.38)}
+
+/* pantalla número de lista (con scroll de seguridad en pantallas bajas) */
+#p-lista{align-items:center}
+.lista-grid{display:grid;gap:14px 40px;width:100%;max-width:1000px;align-items:center;margin:auto 0}
+.lista-izq{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:0;justify-content:center}
+.lista-der{display:flex;flex-direction:column;gap:12px;align-items:stretch;max-width:420px;width:100%;margin:0 auto}
+.escena{display:flex;align-items:flex-end;justify-content:center;gap:6px;font-size:clamp(34px,6vmin,64px);line-height:1;min-height:0}
+.escena svg{height:clamp(120px,24vmin,260px);width:auto}
+.visor{background:#fff;color:var(--tinta);border-radius:18px;min-height:80px;display:flex;align-items:center;justify-content:center;
+  font-size:56px;font-weight:900;letter-spacing:2px;border:4px solid var(--oro)}
+.visor.vacio{color:var(--suave);font-size:30px;font-weight:700;letter-spacing:0}
+.msg{min-height:28px;text-align:center;font-size:20px;font-weight:700;color:#ffd0d4}
+.sacudir{animation:sacudir .35s}
+@keyframes sacudir{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@media (orientation:landscape) and (min-width:700px){.lista-grid{grid-template-columns:1fr 1fr}}
+
+/* menú */
+#p-menu{align-items:center;gap:12px}
+.modos{display:grid;gap:16px;width:100%;max-width:1000px;flex:1 0 auto;min-height:0;align-content:center}
+@media (orientation:landscape) and (min-width:700px){.modos{grid-template-columns:1fr 1fr}}
+.modo{background:linear-gradient(160deg,#fff 0%,#e6f0ff 100%);color:var(--tinta);border:0;border-radius:24px;padding:18px 20px;
+  text-align:center;box-shadow:0 6px 0 #8fa6c6;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:150px;justify-content:center}
+.temas{grid-template-columns:1fr!important}
+@media (min-width:700px){.temas{grid-template-columns:1fr 1fr!important}}
+.modo .niv{font-size:15px;font-weight:700;color:#3d5a52;margin-top:2px}
+.modo .niv i{display:inline-block;height:8px;border-radius:4px;background:#157a45;vertical-align:middle;margin-left:6px}
+.modo:active{transform:translateY(4px);box-shadow:0 2px 0 #8fa6c6}
+.modo .ic{font-size:clamp(40px,7vmin,64px);line-height:1}
+.modo h3{font-size:clamp(24px,3.6vmin,34px);font-weight:900}
+.modo p{margin:0;font-size:clamp(16px,2.3vmin,21px);line-height:1.25}
+.fila-botones{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;width:100%;max-width:1000px}
+.fila-botones .btn{width:100%}
+
+/* juego */
+#p-juego{padding:4px 14px 12px;gap:8px}
+.hud{display:grid;grid-template-columns:1fr 1fr 1.7fr 1fr;gap:8px;position:relative;z-index:25}
+.celda{background:rgba(255,255,255,.14);border-radius:14px;padding:6px 10px;min-height:56px;display:flex;flex-direction:column;justify-content:center;min-width:0;position:relative}
+.celda small{font-size:13px;opacity:.95;text-transform:uppercase;letter-spacing:.5px}
+.celda b{font-size:clamp(22px,3.4vmin,32px);font-weight:900;white-space:nowrap}
+.celda.reloj{background:rgba(255,255,255,.2);align-items:center;text-align:center}
+.celda.reloj b{font-variant-numeric:tabular-nums;font-size:clamp(34px,6.4vmin,60px);line-height:1.05}
+.celda.reloj.urge{background:#8c1722}
+.celda.reloj.urge b{color:#fff}
+.celda.reloj.golpe{animation:golpe .7s}
+@keyframes golpe{0%{background:#d62839;transform:scale(1.07)}100%{transform:scale(1)}}
+.pen-anim{position:absolute;right:8px;top:-6px;font-size:clamp(20px,3.4vmin,30px);font-weight:900;color:#ffb3bb;text-shadow:0 2px 0 rgba(0,0,0,.5);opacity:0;pointer-events:none}
+.pen-anim.ver{animation:resta 1.4s ease-out}
+@keyframes resta{0%{opacity:0;transform:translateY(0)}12%{opacity:1}100%{opacity:0;transform:translateY(16px)}}
+.barranivel{height:10px;border-radius:6px;background:rgba(255,255,255,.25);overflow:hidden;margin-top:4px}
+.barranivel i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7be39a,#ffd23f);transition:width .4s}
+.barra-global{height:8px;border-radius:5px;background:rgba(255,255,255,.2);overflow:hidden;flex:0 0 auto}
+.barra-global i{display:block;height:100%;width:100%;background:#7be39a;transform-origin:left;transform:scaleX(1)}
+.barra-global i.medio{background:#ffd23f}.barra-global i.poco{background:#ff6b78}
+.cuerpo{flex:1;min-height:0;display:grid;gap:10px;position:relative;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"card" "deco" "keys"}
+.tarjeta{grid-area:card}.deco{grid-area:deco}.teclado-juego{grid-area:keys}
+@media (orientation:landscape) and (min-width:700px){
+  .cuerpo{grid-template-columns:minmax(0,1fr) clamp(320px,32vw,460px);grid-template-rows:minmax(0,1fr) auto;grid-template-areas:"card deco" "card keys"}
+  .tarjeta{justify-content:center}
+}
+.tarjeta{background:var(--papel);color:var(--tinta);border-radius:22px;padding:10px 16px 12px;box-shadow:0 6px 0 rgba(0,0,0,.25);
+  display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0;min-width:0}
+.tarjeta .cat{font-size:16px;font-weight:800;color:#a8281c;text-transform:uppercase;letter-spacing:.6px}
+#expr{font-size:clamp(48px,7.2vmin,78px);font-weight:900;white-space:nowrap;overflow:hidden;max-width:100%;text-align:center;line-height:1.25;width:100%;
+  font-variant-numeric:tabular-nums}
+#resp{min-width:200px;border:4px solid var(--oro);border-radius:16px;background:#fff;font-size:clamp(40px,6vmin,60px);font-weight:900;padding:2px 24px;min-height:70px;
+  display:flex;align-items:center;justify-content:center;gap:10px}
+#resp.vacia{color:var(--suave)}
+#resp.ok{border-color:#157a45;background:#e3f7ea}
+.fila-extra{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;font-size:15px;font-weight:700;color:#3d526e}
+.bonus{display:flex;align-items:center;gap:6px;white-space:nowrap;flex:0 0 auto}
+.estrellas{letter-spacing:2px;font-size:18px;color:#c9d3e3}
+.estrellas b{color:#c78a00;font-weight:400}
+#toast{color:#0d6b3a;font-weight:900;font-size:18px;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 auto}
+#toast.aviso{color:#a61e2d}
+#toast.ver{animation:toast 1.4s}
+@keyframes toast{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}85%{opacity:1}100%{opacity:0}}
+.deco{min-height:0;display:flex;align-items:center;justify-content:center;gap:16px;overflow:hidden}
+.deco svg{height:100%;max-height:100%;width:auto;min-height:0}
+.bola{fill:#35506e;stroke:#1d2f45;stroke-width:1.5;transition:fill .25s}
+.bola.on{fill:var(--c);stroke:#fff;stroke-width:2.5}
+.bola.rota{animation:romper .55s}
+@keyframes romper{0%{fill:#fff;stroke:#ff3b4d;stroke-width:7;opacity:.3}100%{stroke-width:1.5;opacity:1}}
+.estrella{fill:#6a5a2a;transition:fill .3s}
+.estrella.on{fill:#ffd23f}
+.teclado-juego{display:flex;flex-direction:column;justify-content:flex-end}
+#fb-error{position:absolute;left:0;right:0;top:0;bottom:0;background:rgba(5,15,35,.8);display:flex;align-items:center;justify-content:center;z-index:20;padding:12px;overflow-y:auto}
+#fb-error .caja{background:#fff;color:var(--tinta);border-radius:24px;padding:18px 22px;max-width:680px;width:100%;max-height:100%;overflow-y:auto;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.3);margin:auto}
+#fb-error h3{font-size:26px;margin-bottom:4px}
+#fb-error .cuenta{font-size:clamp(32px,6vmin,52px);font-weight:900;margin:2px 0}
+#fb-error p{margin:5px 0;font-size:18px;line-height:1.3}
+#fb-error .pen{color:#a61e2d;font-weight:800}
+#fbe-expl{text-align:left;font-size:18px;line-height:1.35;background:#eef4fc;border-radius:14px;padding:8px 12px;margin:6px 0}
+#fbe-expl .pasos div{padding:2px 0}
+#fbe-expl .regla{margin-top:5px;font-weight:700;color:#12263f}
+#fbe-expl .animo{margin-top:5px;font-size:16px;color:#3d526e}
+
+/* resultados / clasificación */
+.res-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:6px 28px;max-width:1040px;width:100%;margin:0 auto}
+@media (orientation:landscape) and (min-width:700px){.res-layout{grid-template-columns:1.1fr 1fr;align-items:center;margin:auto}}
+.res-cab{text-align:center}
+.medalla{font-size:clamp(56px,10vmin,96px);line-height:1}
+.res-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:760px;width:100%;margin:8px auto}
+.dato{background:rgba(255,255,255,.95);color:var(--tinta);border-radius:16px;padding:8px;text-align:center}
+.dato b{display:block;font-size:clamp(26px,4.4vmin,40px);font-weight:900}
+.dato span{font-size:15px;font-weight:700;color:#3d526e}
+.dato.grande{grid-column:1/-1;background:#fff3c4}
+.res-niv{max-width:760px;width:100%;margin:4px auto;display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;font-size:16px}
+.res-niv .fn{display:flex;flex-direction:column;gap:2px}
+.res-niv .fn div{display:flex;justify-content:space-between;font-weight:700}
+.res-codigo{text-align:center;font-size:18px;margin:6px 0}
+.res-codigo code{display:inline-block;background:#fff;color:var(--tinta);border-radius:10px;padding:6px 14px;font-size:22px;font-weight:900;
+  -webkit-user-select:text;user-select:text;font-family:ui-monospace,Menlo,Consolas,monospace;margin-top:4px;word-break:break-all}
+.res-botones{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:760px;width:100%;margin:8px auto 0}
+.res-botones .btn{width:100%}
+.res-botones .grande{grid-column:1/-1}
+.res-pos{text-align:center;font-size:20px;font-weight:800;color:#ffe8a0}
+.res-aviso{text-align:center;font-size:17px;min-height:22px;color:#ffe8a0}
+.tabs{display:flex;gap:8px;justify-content:center;margin:6px 0;flex-wrap:wrap}
+.tab{min-height:56px;padding:8px 18px;border-radius:14px;border:0;background:rgba(255,255,255,.18);font-weight:800;font-size:18px;color:#fff}
+.tab.sel{background:var(--oro);color:#3a2a00}
+table.tabla{border-collapse:separate;border-spacing:0;width:100%;max-width:760px;margin:6px auto;background:rgba(255,255,255,.96);color:var(--tinta);border-radius:14px;font-size:18px}
+table.tabla th,table.tabla td{padding:8px 10px;text-align:center;border-bottom:1px solid #dbe5f3}
+table.tabla th{background:#dbe7fa;font-size:15px}
+table.tabla tr.yo td{background:#fff3c4;font-weight:900}
+table.tabla tr.sep td{background:#eef3fb;color:#3d526e;font-size:15px;padding:2px}
+.empate{font-size:13px;color:#3d526e;font-weight:700}
+
+/* modal */
+#modal{position:fixed;left:0;top:0;right:0;bottom:0;z-index:50;background:rgba(3,10,25,.78);display:flex;align-items:center;justify-content:center;padding:14px;
+  padding-top:max(14px,env(safe-area-inset-top));padding-bottom:max(14px,env(safe-area-inset-bottom))}
+#modal.opaco{background:#07142b}
+#modal-caja{background:#fff;color:var(--tinta);border-radius:24px;padding:20px 22px;max-width:760px;width:100%;max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  box-shadow:0 10px 0 rgba(0,0,0,.3);display:flex;flex-direction:column;gap:10px;--tecla:clamp(52px,7vh,68px)}
+@supports (height:1dvh){#modal-caja{--tecla:clamp(52px,7dvh,68px)}}
+#modal-caja.ancho{max-width:980px;min-height:60%}
+#modal-caja .tecla{background:#e6eefb;box-shadow:0 4px 0 #9fb3cc}
+#modal-caja .tecla.acc{background:#ffe3a3;box-shadow:0 4px 0 #c79a2a}
+#modal-caja .tecla.entrar{background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s)}
+#modal-caja h2{font-size:28px}
+#modal-caja p,#modal-caja li{font-size:18px;line-height:1.35;margin:4px 0}
+#modal-caja .btn{box-shadow:0 4px 0 #9fb3cc;background:#e6eefb}
+#modal-caja .btn.verde{background:var(--verde);color:#fff;box-shadow:0 4px 0 var(--verde-s)}
+#modal-caja .btn.rojo{background:var(--rojo);color:#fff;box-shadow:0 4px 0 #8c1722}
+#modal-caja .tab{background:#e6eefb;color:var(--tinta)}
+#modal-caja .tab.sel{background:var(--oro);color:#3a2a00}
+#modal-caja table.tabla{background:#fff;max-width:none;font-size:16px}
+#modal-caja table.tabla th{position:sticky;top:0;z-index:2}
+#modal-caja .visor{min-height:64px;font-size:44px}
+.modal-botones{display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap}
+.aviso-ok{color:#0d6b3a;font-weight:800;min-height:24px}
+.aviso-mal{color:#a61e2d;font-weight:800}
+textarea.csv{width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;border:2px solid #9fb3cc;border-radius:12px;padding:8px;color:var(--tinta)}
+.modelo h3{font-size:20px;margin:12px 0 2px}
+.modelo code{background:#eef3fb;border-radius:6px;padding:1px 6px;-webkit-user-select:text;user-select:text}
+.modelo details{margin:8px 0}.modelo summary{font-weight:800;font-size:18px;min-height:44px;cursor:pointer;display:flex;align-items:center}
+.pin-puntos{letter-spacing:10px}
+.reloj-pausa{font-size:56px;font-weight:900;text-align:center;font-variant-numeric:tabular-nums}
+.seccion{border-top:2px solid #dbe5f3;padding-top:8px;margin-top:6px}
+.seccion h3{font-size:19px;margin:2px 0 4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---- móvil y pantallas pequeñas ---- */
+@media (max-width:600px){
+  .logo{font-size:18px}.logo .logo-t{display:none}
+  .btn-barra{padding:0 10px;font-size:16px;min-height:48px}
+  #btn-sonido{width:48px;height:48px;font-size:24px}
+  .hud{grid-template-columns:1fr 1fr 1.5fr 1fr;gap:5px}
+  .celda{padding:4px 6px;min-height:46px}.celda small{font-size:10px;letter-spacing:0}.celda b{font-size:18px}
+  .celda.reloj b{font-size:30px}
+  .res-grid{grid-template-columns:repeat(2,1fr)}.res-niv{grid-template-columns:1fr}
+  .res-botones{grid-template-columns:1fr}
+  #fbe-expl,#fb-error p{font-size:16px}
+}
+@media (max-width:400px){body.en-juego #chip-alumno{display:none}}
+@media (max-height:760px) and (orientation:portrait){.deco{display:none}}
+@media (max-height:700px) and (orientation:portrait){
+  :root{--tecla:clamp(42px,7.2vh,54px)}
+  .tarjeta{padding:6px 12px 8px;gap:3px}#expr{line-height:1.15}#resp{min-height:54px;font-size:38px}
+  .titulo{font-size:28px}.modo{min-height:110px;padding:10px}.modo p{font-size:15px}
+  .visor{min-height:60px;font-size:44px}.escena svg{height:110px}
+  .teclado{gap:8px}
+}
+@media (max-height:600px) and (orientation:portrait){
+  :root{--tecla:clamp(36px,6.4vh,42px)}
+  #barra{min-height:44px;padding:4px 10px}.btn-barra{min-height:44px}#btn-sonido{width:44px;height:44px;font-size:22px}
+  #p-juego{padding:2px 8px 6px;gap:4px}
+  .celda{min-height:40px}.celda b{font-size:16px}.celda.reloj b{font-size:24px}
+  #expr{font-size:clamp(30px,9vw,44px)}#resp{min-height:44px;font-size:30px;border-width:3px}.tarjeta .cat{font-size:12px}.fila-extra{min-height:22px;font-size:12px}.estrellas{font-size:14px}
+  .teclado{gap:5px}
+}
+@media (max-height:720px) and (orientation:landscape){
+  .hud{gap:6px}.celda{min-height:48px;padding:3px 10px}.celda.reloj b{font-size:clamp(30px,6vmin,46px)}.deco svg{max-height:100%}
+  #resp{min-height:56px}
+}
+@media (max-height:480px){
+  :root{--tecla:clamp(34px,10.5vh,44px)}
+  #barra{min-height:44px;padding:3px 10px;gap:6px}.logo{font-size:18px;min-height:40px;padding:2px 6px}
+  #chip-alumno{padding:4px 12px;font-size:16px}
+  #btn-sonido{width:44px;height:44px;font-size:22px}.btn-barra{min-height:44px;font-size:15px}
+  .pantalla{padding:2px 12px 6px}
+  .titulo{font-size:24px}.sub{font-size:15px;margin:2px 0}
+  .lista-grid{grid-template-columns:1fr 1fr;gap:6px 22px}
+  .lista-izq .escena{display:none}
+  .visor{min-height:46px;font-size:32px;border-width:3px}.visor.vacio{font-size:22px}.msg{min-height:18px;font-size:15px}
+  .lista-der{gap:6px}.teclado{gap:6px}
+  #p-menu{gap:6px}.modos{grid-template-columns:1fr 1fr;gap:8px;flex:0 0 auto}.modo{min-height:96px;padding:6px 10px;border-radius:16px}.modo .ic{font-size:30px}.modo h3{font-size:19px}.modo p{font-size:13px}
+  #p-menu .escena{display:none}
+  .btn{min-height:44px;padding:6px 14px;font-size:16px}
+  #p-juego{padding:2px 10px 4px;gap:4px}
+  .celda{min-height:38px;padding:2px 8px}.celda small{font-size:10px}.celda b{font-size:18px}.celda.reloj b{font-size:26px}
+  .cuerpo{grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:minmax(0,1fr);grid-template-areas:"card keys";gap:8px}
+  .deco{display:none}
+  .tarjeta{padding:4px 10px;gap:2px;justify-content:center}.tarjeta .cat{font-size:12px}
+  #expr{font-size:clamp(30px,11vh,46px)}#resp{min-height:40px;font-size:28px;border-width:3px;padding:0 14px;min-width:120px}
+  .fila-extra{min-height:22px;font-size:12px}.estrellas{font-size:14px}#toast{font-size:14px}
+  #modal-caja{padding:12px 14px;gap:6px}#modal-caja h2{font-size:22px}#modal-caja p,#modal-caja li{font-size:15px}
+  .medalla{font-size:40px}.res-grid{gap:6px;margin:4px auto}.dato b{font-size:22px}.dato span{font-size:12px}
+}
+</style>
+</head>
+<body>
+<canvas id="nieve" aria-hidden="true"></canvas>
+<div id="app">
+  <header id="barra">
+    <button id="logo" class="logo" type="button" aria-label="Repaso de Mates"><span aria-hidden="true">∑</span><span class="logo-t">Repaso de Mates</span></button>
+    <button id="btn-pausa" class="btn-barra" type="button" hidden>⏸ Pausa</button>
+    <button id="btn-salir" class="btn-barra" type="button" hidden>✔ Terminar</button>
+    <div id="chip-alumno" hidden></div>
+    <button id="btn-sonido" type="button" aria-label="Silenciar sonido" aria-pressed="false">🔊</button>
+  </header>
+  <main id="pantallas">
+
+    <!-- 1. NÚMERO DE LISTA -->
+    <section id="p-lista" class="pantalla scroll" aria-label="Identificación">
+      <div class="lista-grid">
+        <div class="lista-izq">
+          <h1 class="titulo">Repaso de mates</h1>
+          <p class="sub">Escribe tu <b>número de lista</b> (del 1 al 40)</p>
+          <div class="escena" id="escena-lista" aria-hidden="true"></div>
+        </div>
+        <div class="lista-der">
+          <div class="visor vacio" id="visor-lista" role="status" aria-live="polite">Tu número</div>
+          <div class="msg" id="msg-lista" role="status"></div>
+          <div id="tec-lista"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ELEGIR TEMA (obligatorio) -->
+    <section id="p-menu" class="pantalla scroll" aria-label="Elegir tema">
+      <h1 class="titulo" id="saludo">¡Hola!</h1>
+      <p class="sub">¿Qué quieres repasar hoy? <b>Elige un tema</b> para empezar</p>
+      <div class="modos temas" id="temas"></div>
+      <div class="fila-botones">
+        <button class="btn" id="btn-ayuda" type="button">❓ Cómo funciona</button>
+        <button class="btn suave" id="btn-cambiar" type="button">🔁 Cambiar alumno</button>
+      </div>
+      <div class="escena" id="escena-menu" aria-hidden="true" style="margin-top:10px"></div>
+    </section>
+
+    <!-- 3. JUEGO -->
+    <section id="p-juego" class="pantalla" aria-label="Partida">
+      <div class="hud" id="hud">
+        <div class="celda"><small>Aciertos</small><b id="h-puntos">0</b></div>
+        <div class="celda"><small>Racha</small><b id="h-racha">0</b></div>
+        <div class="celda reloj" id="h-modo-celda"><small id="h-modo-t">Tema</small><b id="h-modo">+ −</b><span class="pen-anim" id="h-pen" aria-hidden="true"></span></div>
+        <div class="celda"><small>Nivel</small><b id="h-niv-t">1 de 10</b><div class="barranivel" aria-hidden="true"><i id="h-niv"></i></div></div>
+      </div>
+      <div class="barra-global" id="barra-global" aria-hidden="true"><i id="bg-i"></i></div>
+      <div class="cuerpo">
+        <div class="tarjeta" id="tarjeta">
+          <div class="cat" id="q-cat">Suma y resta</div>
+          <div id="expr" aria-live="polite"></div>
+          <div id="resp" class="vacia" role="status" aria-label="Tu respuesta">= ?</div>
+          <div class="fila-extra"><span id="toast" role="status"></span></div>
+        </div>
+        <div class="deco" id="deco" aria-hidden="true"></div>
+        <div class="teclado-juego"><div id="tec-juego"></div></div>
+      </div>
+      <div id="fb-error" hidden>
+        <div class="caja" role="alertdialog" aria-labelledby="fbe-t" aria-describedby="fbe-cuenta">
+          <h3 id="fbe-t">¡Casi!</h3>
+          <div class="cuenta" id="fbe-cuenta"></div>
+          <p id="fbe-tu"></p>
+          <div id="fbe-expl"></div>
+          <p class="pen" id="fbe-pen"></p>
+          <button class="btn verde" id="fbe-ok" type="button">Continuar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. RESULTADOS -->
+    <section id="p-result" class="pantalla scroll" aria-label="Resultados"></section>
+
+  </main>
+</div>
+
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-titulo"><div id="modal-caja"></div></div>
+
+<script>
+'use strict';
+(function () {
+  var G = (typeof window !== 'undefined') ? window : globalThis;
+
+  /* ===================================================================
+   *  CONFIGURACIÓN
+   * =================================================================== */
+  // PIN del panel de profesorado. Se guarda solo su HUELLA (hash), no el PIN.
+  // PIN por defecto: el indicado en CHANGELOG.md (no se escribe aquí en claro).  Para cambiarlo: abre index.html?test=1, escribe en la consola
+  //   __JUEGO__.hashPin('1234')
+  // y pega el valor devuelto aquí (PIN de 4 cifras).
+  var PIN_HASH = 'd2a06e03222d634b';
+  var LISTA_MAX = 40;
+  var params = (typeof location !== 'undefined' && typeof URLSearchParams !== 'undefined') ? new URLSearchParams(location.search) : null;
+  // Modo de pruebas: SOLO con ?test=1 (o en Node, sin navegador). Sin él no existe window.__JUEGO__
+  // y los parámetros ?seed y ?rapido se ignoran.
+  var TEST = params ? params.get('test') === '1' : true;
+  var RAPIDO = TEST && !!(params && params.get('rapido') === '1');
+  var CFG = {
+    DURACION_CR: RAPIDO ? 20 : 300,    // segundos de Contrarreloj (reales)
+    PENAL_CR: 10,                      // segundos que resta cada error en Contrarreloj
+    PENAL_NOSE_CR: 3,                  // segundos que resta «No sé» en Contrarreloj
+    PREGUNTAS_RM: 20,                  // el rey de las mates: 20 preguntas
+    FACTOR_TIEMPO: RAPIDO ? 0.25 : 1,  // escala del tiempo objetivo
+    PAUSA_OK: RAPIDO ? 60 : 220,       // ms de comentario tras un acierto (la entrada NO se bloquea)
+    PAUSA_ERR: RAPIDO ? 250 : 0,       // 0 = esperar al botón Continuar
+    COLA_RETRASO: 3,                   // preguntas hasta reencolar un error
+    LUCES: 12,
+    MAXLEN_VISUAL: 22,                 // longitud visual máxima de la expresión
+    BONUS_MAX: 0.10,                   // bonus de tiempo: hasta +10 % del base
+    RACHA_PASO: 0.1,                   // +0,1 por cada 3 aciertos seguidos
+    RACHA_TOPE: 1.3,                   // multiplicador máximo de racha
+    PENAL_PUNTOS: 7,                   // puntos que resta un error: PENAL_PUNTOS x nivel (calibrado con tests/puntuacion_sim.cjs)
+    ERR_PESO_RANK: 2,                  // Contrarreloj: puntuación = aciertos - ERR_PESO_RANK x errores
+    FUGA_CAT: 0.25,                    // peso con que la evidencia de una categoría actualiza las demás
+    BLOQUEO_TOQUE: RAPIDO ? 60 : 350                 // ms sin aceptar toques fantasma tras Continuar / Jugar otra vez...
+  };
+  var NOMBRES_CAT = ['Suma y resta', 'Multiplicación y división', 'Potencias', 'Operaciones combinadas'];
+  var M = '−'; // signo menos tipográfico
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+  /* ===================================================================
+   *  HASH simple (FNV-1a 32 bits) para el PIN y los códigos
+   * =================================================================== */
+  function hash32(s) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function hex8(n) { var s = (n >>> 0).toString(16); while (s.length < 8) s = '0' + s; return s; }
+  function hashPin(pin) { return hex8(hash32('mn1|' + pin)) + hex8(hash32(String(pin).split('').reverse().join('') + '|repaso')); }
+  var ALFA32 = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  function b32(n, len) { var s = ''; for (var i = 0; i < len; i++) { s = ALFA32.charAt(n & 31) + s; n = n >>> 5; } return s; }
+
+  /* ===================================================================
+   *  ALEATORIO CON SEMILLA (mulberry32). Un único generador para toda la
+   *  lógica del juego; lo cosmético (nieve, mensajes) usa Math.random.
+   * =================================================================== */
+  var RNG = {
+    s: 1, semilla: 1,
+    sembrar: function (n) { this.semilla = n >>> 0; this.s = (n | 0) || 1; },
+    next: function () {
+      var a = (this.s = (this.s + 0x6D2B79F5) | 0);
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    },
+    ri: function (a, b) { return a + Math.floor(this.next() * (b - a + 1)); },
+    pick: function (arr) { return arr[Math.floor(this.next() * arr.length)]; },
+    chance: function (p) { return this.next() < p; },
+    sg: function () { return this.next() < 0.5 ? -1 : 1; }
+  };
+  (function () {
+    var s = (TEST && params) ? params.get('seed') : null;
+    if (s !== null && s !== '' && !isNaN(parseInt(s, 10))) RNG.sembrar(parseInt(s, 10));
+    else RNG.sembrar((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
+  })();
+
+  /* ===================================================================
+   *  EVALUADOR: analizador sintáctico descendente propio (SIN eval).
+   *  Admite enteros, + - − · * × : / ÷ ^ ( ) [ ], signos unarios.
+   *  Jerarquía: paréntesis > potencia (der.) > signo unario > · : > + -
+   *  (por tanto -3^2 = -9, como en la notación española).
+   *  La división debe ser exacta; 0^0 y los exponentes negativos se rechazan.
+   *  Además construye el ÁRBOL de la expresión (parsear), que usa el
+   *  módulo Explicar para redactar los pasos con los números reales.
+   * =================================================================== */
+  var Evaluador = (function () {
+    function tokenizar(src) {
+      var s = String(src).replace(/\s+/g, '').replace(/[−‒–—]/g, '-')
+        .replace(/[·×⋅*]/g, '*').replace(/[:÷\/]/g, '/');
+      var out = [], i = 0;
+      while (i < s.length) {
+        var c = s.charAt(i);
+        if (c >= '0' && c <= '9') {
+          var j = i; while (j < s.length && s.charAt(j) >= '0' && s.charAt(j) <= '9') j++;
+          if (j - i > 12) throw new Error('número demasiado grande');
+          out.push({ t: 'n', v: parseInt(s.slice(i, j), 10) }); i = j;
+        } else if ('+-*/^'.indexOf(c) >= 0) { out.push({ t: 'o', v: c }); i++; }
+        else if (c === '(' || c === '[') { out.push({ t: 'a', v: c }); i++; }
+        else if (c === ')' || c === ']') { out.push({ t: 'c', v: c }); i++; }
+        else throw new Error('carácter no válido');
+      }
+      if (!out.length) throw new Error('vacía');
+      return out;
+    }
+    function detallado(expr) {
+      try {
+        var tk = tokenizar(expr), p = 0, maxAbs = 0;
+        var reg = function (v) {
+          if (!isFinite(v) || Math.abs(v) > 9007199254740991) throw new Error('desbordamiento');
+          if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
+          return v;
+        };
+        var ver = function () { return tk[p]; };
+        var esOp = function (c) { var t = tk[p]; return t && t.t === 'o' && c.indexOf(t.v) >= 0; };
+        var expr_ = function () {
+          var v = termino();
+          while (esOp('+-')) { var o = tk[p++].v, r = termino(); v = reg(o === '+' ? v + r : v - r); }
+          return v;
+        };
+        var termino = function () {
+          var v = unario();
+          while (esOp('*/')) {
+            var o = tk[p++].v, r = unario();
+            if (o === '*') v = reg(v * r);
+            else { if (r === 0) throw new Error('división por 0'); if (v % r !== 0) throw new Error('división no exacta'); v = reg(v / r); }
+          }
+          return v;
+        };
+        var unario = function () {
+          if (esOp('+-')) { var o = tk[p++].v; var r = unario(); return reg(o === '-' ? -r : r); }
+          return potencia();
+        };
+        var potencia = function () {
+          var b = atomo();
+          if (esOp('^')) {
+            p++;
+            var e;
+            if (esOp('+-')) { var o = tk[p++].v; var x = potencia(); e = o === '-' ? -x : x; } else e = potencia();
+            if (e < 0) throw new Error('exponente negativo');
+            if (e > 64) throw new Error('exponente grande');
+            if (b === 0 && e === 0) throw new Error('0^0 indeterminado');
+            var r = 1; for (var k = 0; k < e; k++) r = reg(r * b);
+            return reg(r);
+          }
+          return b;
+        };
+        var atomo = function () {
+          var t = ver();
+          if (!t) throw new Error('fin inesperado');
+          if (t.t === 'n') { p++; return reg(t.v); }
+          if (t.t === 'a') {
+            p++; var v = expr_(); var c = tk[p++];
+            if (!c || c.t !== 'c' || (c.v === ')') !== (t.v === '(')) throw new Error('paréntesis');
+            return v;
+          }
+          throw new Error('símbolo inesperado');
+        };
+        var val = expr_();
+        if (p !== tk.length) throw new Error('sobran símbolos');
+        if (val === 0) val = 0; // evita -0
+        return { ok: true, valor: val, max: maxAbs };
+      } catch (e) { return { ok: false, valor: NaN, max: NaN, error: String(e.message) }; }
+    }
+    function evaluar(expr) { return detallado(expr).valor; }
+
+    /* ---- árbol: n (número), u (signo), g (grupo), p (potencia), s (suma/resta), m (producto/cociente) ---- */
+    function parsear(src) {
+      var tk = tokenizar(src), p = 0;
+      var esOp = function (c) { var t = tk[p]; return t && t.t === 'o' && c.indexOf(t.v) >= 0; };
+      var expr_ = function () {
+        var it = [termino()], op = [];
+        while (esOp('+-')) { op.push(tk[p++].v); it.push(termino()); }
+        return it.length === 1 ? it[0] : { k: 's', t: it, o: op };
+      };
+      var termino = function () {
+        var it = [unario()], op = [];
+        while (esOp('*/')) { op.push(tk[p++].v); it.push(unario()); }
+        return it.length === 1 ? it[0] : { k: 'm', t: it, o: op };
+      };
+      var unario = function () {
+        if (esOp('+-')) { var s = tk[p++].v; return { k: 'u', s: s, x: unario() }; }
+        return potencia();
+      };
+      var potencia = function () {
+        var b = atomo();
+        if (esOp('^')) { p++; var e = esOp('+-') ? unario() : potencia(); return { k: 'p', b: b, e: e }; }
+        return b;
+      };
+      var atomo = function () {
+        var t = tk[p];
+        if (!t) throw new Error('fin inesperado');
+        if (t.t === 'n') { p++; return { k: 'n', v: t.v }; }
+        if (t.t === 'a') {
+          p++; var x = expr_(); var c = tk[p++];
+          if (!c || c.t !== 'c' || (c.v === ')') !== (t.v === '(')) throw new Error('paréntesis');
+          // (−5) y (+5): literales con signo (se muestran siempre entre paréntesis)
+          if (t.v === '(' && x.k === 'u' && x.x.k === 'n') return { k: 'n', v: x.s === '-' ? -x.x.v : x.x.v, lit: true };
+          return { k: 'g', br: t.v, x: x };
+        }
+        throw new Error('símbolo inesperado');
+      };
+      var r = expr_();
+      if (p !== tk.length) throw new Error('sobran símbolos');
+      return r;
+    }
+    function valor(n) {
+      var i, v;
+      switch (n.k) {
+        case 'n': return n.v;
+        case 'u': return n.s === '-' ? -valor(n.x) : valor(n.x);
+        case 'g': return valor(n.x);
+        case 'p': { var b = valor(n.b), e = valor(n.e), r = 1; for (i = 0; i < e; i++) r *= b; return r; }
+        case 's': v = valor(n.t[0]); for (i = 0; i < n.o.length; i++) v = n.o[i] === '+' ? v + valor(n.t[i + 1]) : v - valor(n.t[i + 1]); return v;
+        default: v = valor(n.t[0]); for (i = 0; i < n.o.length; i++) v = n.o[i] === '*' ? v * valor(n.t[i + 1]) : v / valor(n.t[i + 1]); return v;
+      }
+    }
+    return { detallado: detallado, evaluar: evaluar, parsear: parsear, valor: valor };
+  })();
+
+  /* ===================================================================
+   *  EXPLICAR: redacta la explicación con los números y los pasos REALES
+   *  de la pregunta (reduce el árbol por fases: paréntesis, potencias,
+   *  signos, · y :, sumas y restas) y añade una regla concreta.
+   * =================================================================== */
+  var Explicar = (function () {
+    var N = function (v) { return { k: 'n', v: v }; };
+    var fmt = function (v) { return v < 0 ? M + (-v) : String(v); };
+    var simb = { '*': '·', '/': ':', '+': '+', '-': M };
+    var valor = Evaluador.valor;
+    function hijos(n) {
+      switch (n.k) { case 'u': case 'g': return [n.x]; case 'p': return [n.b, n.e]; case 's': case 'm': return n.t; default: return []; }
+    }
+    function contiene(n, k) { if (n.k === k) return true; var h = hijos(n); for (var i = 0; i < h.length; i++) if (contiene(h[i], k)) return true; return false; }
+    function recorrer(n, f) { f(n); var h = hijos(n); for (var i = 0; i < h.length; i++) recorrer(h[i], f); }
+    function transformar(n, f) {
+      var r = f(n); if (r) return r;
+      switch (n.k) {
+        case 'u': return { k: 'u', s: n.s, x: transformar(n.x, f) };
+        case 'g': return { k: 'g', br: n.br, x: transformar(n.x, f) };
+        case 'p': return { k: 'p', b: transformar(n.b, f), e: transformar(n.e, f) };
+        case 's': case 'm': return { k: n.k, t: n.t.map(function (h) { return transformar(h, f); }), o: n.o };
+        default: return n;
+      }
+    }
+    function render(n, ctx) {
+      var i, out;
+      switch (n.k) {
+        case 'n':
+          if (n.lit) return '(' + (n.v < 0 ? M : '+') + Math.abs(n.v) + ')';
+          if (n.v < 0) return ctx === 'first' ? M + (-n.v) : '(' + M + (-n.v) + ')';
+          return String(n.v);
+        case 'u': return (n.s === '-' ? M : '+') + render(n.x, 'rest');
+        case 'g': return n.br + render(n.x, 'first') + (n.br === '(' ? ')' : ']');
+        case 'p': return render(n.b, 'base') + '^' + render(n.e, 'first');
+        default:
+          out = render(n.t[0], ctx);
+          for (i = 0; i < n.o.length; i++) out += simb[n.o[i]] + render(n.t[i + 1], 'rest');
+          return out;
+      }
+    }
+    function expansion(b, e) {            // (−2)·(−2)·(−2)
+      var f = render(N(b), 'base'), s = []; for (var i = 0; i < e; i++) s.push(f); return s.join('·');
+    }
+    function pasos(root) {
+      var lineas = [], n = 0, partes;
+      function emitir(titulo, ps, r) {
+        n++;
+        var l = n + ') ' + titulo + ': ' + ps.join('; ');
+        if (r.k !== 'n') l += '  →  ' + render(r, 'first');
+        lineas.push(l);
+      }
+      var guard = 0;
+      while (contiene(root, 'g') && guard++ < 6) {
+        partes = [];
+        root = transformar(root, function (x) {
+          if (x.k === 'g' && !contiene(x.x, 'g')) { var v = valor(x.x); partes.push(render(x.x, 'first') + ' = ' + fmt(v)); return N(v); }
+          return null;
+        });
+        emitir('Paréntesis', partes, root);
+      }
+      if (contiene(root, 'p')) {
+        partes = [];
+        root = transformar(root, function (x) {
+          if (x.k === 'p' && x.b.k === 'n' && x.e.k === 'n') {
+            var v = valor(x), t = render(x.b, 'base') + '^' + x.e.v + ' = ';
+            if (x.e.v >= 2 && x.e.v <= 5) t += expansion(x.b.v, x.e.v) + ' = ';
+            partes.push(t + fmt(v)); return N(v);
+          }
+          return null;
+        });
+        emitir('Potencias', partes, root);
+      }
+      if (contiene(root, 'u')) {
+        partes = [];
+        root = transformar(root, function (x) {
+          if (x.k === 'u' && x.x.k === 'n' && x.x.v < 0) { var v = valor(x); partes.push(render(x, 'first') + ' = ' + fmt(v)); return N(v); }
+          return null;
+        });
+        if (partes.length) emitir('Signos', partes, root);
+      }
+      if (contiene(root, 'm')) {
+        partes = [];
+        root = transformar(root, function (x) {
+          if (x.k !== 'm') return null;
+          var acc = valor(x.t[0]), prev = x.t[0], v;
+          for (var i = 0; i < x.o.length; i++) {
+            var r = valor(x.t[i + 1]);
+            v = x.o[i] === '*' ? acc * r : acc / r;
+            partes.push(render(i === 0 ? prev : N(acc), 'first') + simb[x.o[i]] + render(x.t[i + 1], 'rest') + ' = ' + fmt(v));
+            acc = v;
+          }
+          return N(acc);
+        });
+        emitir('Multiplicar y dividir', partes, root);
+      }
+      if (root.k === 's') {
+        partes = []; var acc = valor(root.t[0]), prev = root.t[0], v;
+        for (var i = 0; i < root.o.length; i++) {
+          var r = valor(root.t[i + 1]);
+          v = root.o[i] === '+' ? acc + r : acc - r;
+          partes.push(render(i === 0 ? prev : N(acc), 'first') + simb[root.o[i]] + render(root.t[i + 1], 'rest') + ' = ' + fmt(v));
+          acc = v;
+        }
+        root = N(acc);
+        emitir('Sumar y restar', partes, root);
+      }
+      return lineas;
+    }
+    /* ---- reglas concretas por categoría (con los números de la pregunta) ---- */
+    function acumulado(s, hasta) {        // valor de los primeros 'hasta' términos de una suma
+      var v = valor(s.t[0]);
+      for (var i = 0; i < hasta - 1; i++) v = s.o[i] === '+' ? v + valor(s.t[i + 1]) : v - valor(s.t[i + 1]);
+      return v;
+    }
+    function reglaSuma(t) {
+      var sums = []; recorrer(t, function (x) { if (x.k === 's') sums.push(x); });
+      var i, j, s, o, it, a;
+      for (j = 0; j < sums.length; j++) {            // 1.º: signo menos delante de un paréntesis con operaciones
+        s = sums[j];
+        for (i = 1; i < s.t.length; i++) if (s.o[i - 1] === '-' && s.t[i].k === 'g') {
+          var v = valor(s.t[i].x);
+          return 'Con un ' + M + ' delante de un paréntesis se calcula primero lo de dentro (' + render(s.t[i].x, 'first') + ' = ' + fmt(v) + ') y después se resta ese resultado' +
+            (v < 0 ? ': restar ' + fmt(v) + ' es sumar ' + (-v) + '.' : '.');
+        }
+      }
+      for (j = 0; j < sums.length; j++) {
+        s = sums[j];
+        for (i = 1; i < s.t.length; i++) {
+          o = s.o[i - 1]; it = s.t[i]; a = acumulado(s, i);
+          if (o === '-' && it.k === 'n' && it.lit && it.v < 0) return 'Restar un número negativo es sumar su opuesto: ' + fmt(a) + ' ' + M + ' (' + M + (-it.v) + ') = ' + fmt(a) + ' + ' + (-it.v) + '.';
+          if (o === '+' && it.k === 'n' && it.lit && it.v < 0) return 'Sumar un número negativo es restar: ' + fmt(a) + ' + (' + M + (-it.v) + ') = ' + fmt(a) + ' ' + M + ' ' + (-it.v) + '.';
+          if (o === '-' && it.k === 'n' && it.lit && it.v > 0) return 'Restar un número positivo es quitar: ' + fmt(a) + ' ' + M + ' (+' + it.v + ') = ' + fmt(a) + ' ' + M + ' ' + it.v + '.';
+          if (o === '+' && it.k === 'n' && it.lit && it.v > 0) return 'Sumar (+' + it.v + ') es sumar ' + it.v + ': ' + fmt(a) + ' + (+' + it.v + ') = ' + fmt(a) + ' + ' + it.v + '.';
+        }
+      }
+      s = sums[0];
+      if (s && s.t.length === 2 && s.t[0].k !== 'g' && s.t[1].k !== 'g' && !contiene(s, 'm')) {      // dos números sin paréntesis
+        var x = valor(s.t[0]), y = s.o[0] === '+' ? valor(s.t[1]) : -valor(s.t[1]);
+        if ((x < 0) === (y < 0)) return 'Signos iguales: se suman los valores (' + Math.abs(x) + ' + ' + Math.abs(y) + ' = ' + (Math.abs(x) + Math.abs(y)) + ') y se mantiene el signo ' + (x < 0 ? M : '+') + '.';
+        var mayor = Math.abs(x) > Math.abs(y) ? x : y, menor = mayor === x ? y : x;
+        return 'Signos distintos: se restan los valores (' + Math.abs(mayor) + ' ' + M + ' ' + Math.abs(menor) + ' = ' + (Math.abs(mayor) - Math.abs(menor)) + ') y gana el signo del mayor, el ' + fmt(mayor) + '.';
+      }
+      return null;
+    }
+    function reglaProd(t) {
+      var ms = []; recorrer(t, function (x) { if (x.k === 'm') ms.push(x); });
+      if (!ms.length) return null;
+      var m = ms[0], a = valor(m.t[0]), b = valor(m.t[1]), op = m.o[0];
+      var r = op === '*' ? a * b : a / b, ig = (a < 0) === (b < 0);
+      var txt = render(m.t[0], 'first') + simb[op] + render(m.t[1], 'rest') + ': signos ' + (ig ? 'iguales, resultado positivo' : 'distintos, resultado negativo') + '; ' +
+        Math.abs(a) + simb[op] + Math.abs(b) + ' = ' + Math.abs(r) + (r < 0 ? ', así que ' + fmt(r) : '') + '.';
+      if (m.o.length >= 2 && m.o.indexOf('/') >= 0 && m.o.indexOf('*') >= 0) txt += ' Se opera de izquierda a derecha, sin agrupar.';
+      return txt;
+    }
+    function reglaPot(t) {
+      var ps = []; recorrer(t, function (x) { if (x.k === 'p') ps.push(x); });
+      if (!ps.length) return null;
+      var p = ps[0], b = p.b, e = valor(p.e), bv = b.k === 'n' ? b.v : null;
+      // −a^n sin paréntesis: el exponente solo afecta a la base positiva y el signo menos se queda fuera
+      var sinPar = null; recorrer(t, function (x) { if (!sinPar && x.k === 'u' && x.s === '-' && x.x.k === 'p' && x.x.b.k === 'n' && !x.x.b.lit && x.x.b.v > 0) sinPar = x.x; });
+      if (sinPar) {
+        var ba = sinPar.b.v, ee = valor(sinPar.e);
+        return 'Sin paréntesis, el exponente solo afecta al ' + ba + ': ' + M + ba + '^' + ee + ' = ' + M + '(' + ba + '^' + ee + ') = ' + M + Math.pow(ba, ee) + '. Con paréntesis sería (' + M + ba + ')^' + ee + ' = ' + (ee % 2 === 0 ? '' : M) + Math.pow(ba, ee) + '.';
+      }
+      if (bv === null) return 'Primero se calcula el paréntesis y después se eleva el resultado.';
+      if (e === 0) return 'Un número distinto de 0 elevado a 0 vale 1: ' + render(b, 'base') + '^0 = 1.';
+      if (e === 1) return 'Elevado a 1, un número queda igual: ' + render(b, 'base') + '^1 = ' + fmt(bv) + '.';
+      var par = e % 2 === 0;
+      if (bv === -1) return 'La base (' + M + '1) con exponente ' + e + ' (' + (par ? 'par' : 'impar') + ') da ' + (par ? '1' : M + '1') + ': los exponentes pares quitan el signo.';
+      if (bv < 0) return 'Base negativa y exponente ' + e + ' (' + (par ? 'par' : 'impar') + '): el resultado es ' + (par ? 'positivo' : 'negativo') + '.';
+      if (bv === 10) return 'Una potencia de 10 es un 1 seguido de tantos ceros como indica el exponente: 10^' + e + ' = ' + Math.pow(10, e) + '.';
+      return 'El exponente ' + e + ' indica cuántas veces se multiplica el ' + bv + ' por sí mismo.';
+    }
+    function explicar(texto, cat) {
+      var root = Evaluador.parsear(texto), regla = null;
+      var lineas = pasos(root);
+      if (cat === 1) regla = reglaSuma(root);
+      else if (cat === 2) regla = reglaProd(root);
+      else if (cat === 3) regla = reglaPot(root);
+      else if (contiene(root, 'm')) { var ms = []; recorrer(root, function (x) { if (x.k === 'm' && x.o.length >= 2 && x.o.indexOf('/') >= 0 && x.o.indexOf('*') >= 0) ms.push(x); }); if (ms.length) regla = 'Las · y : se hacen de izquierda a derecha, sin agrupar.'; }
+      if (cat === 4 && !regla) regla = 'Orden: paréntesis, potencias, · y :, y al final sumas y restas.';
+      return { lineas: lineas, regla: regla, texto: lineas.join('\n') + (regla ? '\n' + regla : '') };
+    }
+    return { explicar: explicar, render: render, pasos: pasos };
+  })();
+
+  /* ===================================================================
+   *  GENERADOR de preguntas (4 categorías x 10 niveles)
+   *  Cada generador devuelve {p: texto plano con ^}. Después se VERIFICA con
+   *  el Evaluador (entero, rango, no repetida, sin trivialidades) y se
+   *  redacta la explicación con los pasos reales (Explicar).
+   * =================================================================== */
+    var __mod0 = (function () { var module = { exports: {} }; var exports = module.exports;
+// Generador «Sumas y restas de enteros SIN paréntesis».
+// Interfaz: genSumaSP(d, H) con d = nivel 1..10 y H = { ri, chance, sg, pick, M }. Devuelve { p } o null.
+// Solo dígitos, + y − (U+2212). Sin paréntesis, sin dobles signos. Resultado y sumas parciales ≤ 150.
+function genSumaSP(d, H) {
+  // [nº de términos, mínimo, máximo, probabilidad de empezar con signo menos]
+  var CFG = [null,
+    [2, 2, 9, 0.5], [2, 5, 20, 0.5], [3, 2, 9, 0.4], [3, 3, 20, 0.4], [4, 2, 12, 0.4],
+    [4, 5, 25, 0.5], [5, 3, 20, 0.4], [5, 5, 35, 0.4], [6, 3, 30, 0.4], [6, 10, 60, 0.4]];
+  var c = CFG[Math.max(1, Math.min(10, d | 0))], n = c[0], lo = c[1], hi = c[2];
+  var nums = [], sig = [], i, parcial = 0, hayMas = false, hayMenos = false, txt = '';
+  for (i = 0; i < n; i++) {
+    nums.push(H.ri(lo, hi));
+    if (i === 0) sig.push(H.chance(c[3]) ? -1 : 1);
+    else sig.push(H.sg());
+  }
+  for (i = 0; i < n; i++) {
+    if (i > 0 && nums[i] === nums[i - 1]) return null;           // nada de 7−7 ni 7+7 pegados
+    parcial += sig[i] * nums[i];
+    if (Math.abs(parcial) > 150) return null;
+    if (i > 0) { if (sig[i] > 0) hayMas = true; else hayMenos = true; }
+  }
+  if (parcial === 0) return null;
+  if (d === 1 && sig.indexOf(-1) < 0) return null;                // en el nivel 1 siempre hay algún signo menos
+  if (d >= 2 && n >= 3 && !(hayMas && hayMenos)) return null;    // mezcla de signos entre los términos
+  if (d === 2 && sig.indexOf(-1) < 0) return null;
+  for (i = 0; i < n; i++) {
+    if (i === 0) txt += (sig[0] < 0 ? H.M : '') + nums[0];
+    else txt += (sig[i] < 0 ? H.M : '+') + nums[i];
+  }
+  return { p: txt };
+}
+if (typeof module !== 'undefined') module.exports = { genSumaSP: genSumaSP };
+
+  return module.exports; })();
+  var genSumaSP = __mod0.genSumaSP;
+  var __mod1 = (function () { var module = { exports: {} }; var exports = module.exports;
+// Generador «Potencias sencillas de enteros, con y sin paréntesis».
+// Interfaz: genPotSenc(d, H) con d = nivel 1..10 y H = { ri, chance, sg, pick, M }. Devuelve { p } o null.
+// Notación: base^exponente en texto plano. Base negativa SIEMPRE entre paréntesis; en los niveles 7-9 aparece
+// además el signo menos delante sin paréntesis (−3^2 = −9), para contrastarlo con (−3)^2 = 9.
+function genPotSenc(d, H) {
+  var M = H.M, a, e, o;
+  function neg(b) { return '(' + M + b + ')'; }
+  function pos(b) { return H.chance(0.35) ? '(+' + b + ')' : String(b); }
+  switch (Math.max(1, Math.min(10, d | 0))) {
+    case 1: if (H.chance(0.15)) return { p: '10^2' };
+      return { p: H.chance(0.75) ? H.ri(2, 9) + '^2' : H.ri(2, 4) + '^3' };    // 7^2, 2^3 (sin paréntesis)
+    case 2: if (H.chance(0.5)) { a = H.pick([2, 3]); return { p: a + '^' + H.ri(2, 4) }; }
+      return { p: (H.chance(0.5) ? '(+' + H.ri(2, 6) + ')' : String(H.ri(2, 6))) + '^' + H.ri(2, 3) };
+    case 3: a = H.ri(2, 9); return { p: (H.chance(0.75) ? neg(a) : '(+' + a + ')') + '^2' };
+    case 4: if (H.chance(0.55)) return { p: neg(H.ri(2, 5)) + '^3' };
+      return { p: neg(H.ri(2, 9)) + '^2' };
+    case 5: if (H.chance(0.55)) return { p: neg(1) + '^' + H.ri(2, 30) };
+      return { p: neg(H.ri(2, 3)) + '^' + H.ri(2, 5) };
+    case 6: o = H.ri(0, 3); a = H.ri(2, 9);
+      if (o === 0) return { p: neg(a) + '^0' };
+      if (o === 1) return { p: pos(a) + '^1' };
+      if (o === 2) return { p: neg(a) + '^1' };
+      return { p: a + '^0' };
+    case 7: return { p: H.chance(0.7) ? M + H.ri(2, 9) + '^2' : M + H.ri(2, 4) + '^3' };     // −3^2 = −9
+    case 8: a = H.ri(2, 9);
+      return { p: H.chance(0.5) ? M + a + '^2' : neg(a) + '^2' };             // −4^2 frente a (−4)^2
+    case 9: if (H.chance(0.5)) return { p: M + neg(H.ri(2, 4)) + '^' + H.ri(2, 4) };   // −(−2)^3
+      return { p: H.chance(0.5) ? M + H.ri(2, 5) + '^2' : neg(H.ri(2, 5)) + '^2' };
+    default: o = H.ri(0, 5); a = H.ri(2, 5);
+      if (o === 0) return { p: M + a + '^' + H.ri(2, 3) };
+      if (o === 1) return { p: neg(a) + '^' + H.ri(2, 4) };
+      if (o === 2) return { p: M + neg(H.ri(2, 4)) + '^' + H.ri(2, 4) };
+      if (o === 3) return { p: H.pick(['10^3', neg(10) + '^2', neg(10) + '^3']) };
+      if (o === 4) return { p: pos(a) + '^' + H.ri(2, 4) };
+      return { p: neg(a) + '^' + H.ri(2, 3) };
+  }
+}
+if (typeof module !== 'undefined') module.exports = { genPotSenc: genPotSenc };
+
+  return module.exports; })();
+  var genPotSenc = __mod1.genPotSenc;
+  var __mod2 = (function () { var module = { exports: {} }; var exports = module.exports;
+// Mini-lecciones de repaso por tema (1.º-2.º ESO). Los ejemplos se verifican con el evaluador en tests/lecciones_test.cjs.
+var LECCIONES = [
+  {
+    tema: 1, titulo: 'Sumas y restas sin paréntesis',
+    resumen: 'Se calcula de izquierda a derecha, atendiendo al signo de cada número.',
+    reglas: [
+      'Mismo signo: se suman los valores y se mantiene el signo.',
+      'Distinto signo: se restan los valores y gana el signo del mayor.',
+      'Puedes sumar por un lado los positivos y por otro los negativos.',
+      'Cada número lleva el signo que tiene delante: en −5+8, el 5 es negativo.'
+    ],
+    ejemplos: [
+      { expr: '−5+8−3', pasos: ['−5+8 = 3 (8 gana a 5, signo +)', '3−3 = 0'], resultado: 0 },
+      { expr: '−4−6+15', pasos: ['−4−6 = −10 (mismo signo: se suma)', '−10+15 = 5'], resultado: 5 }
+    ]
+  },
+  {
+    tema: 2, titulo: 'Sumas y restas con paréntesis',
+    resumen: 'Primero se quitan los paréntesis con la regla de los signos; después se suma y se resta.',
+    reglas: [
+      '+(+a) = +a   y   +(−a) = −a: un + delante deja el signo igual.',
+      '−(+a) = −a   y   −(−a) = +a: un − delante cambia el signo.',
+      'Dos signos seguidos distintos dan −; iguales dan +.',
+      'Cuando no quedan paréntesis, se suma y se resta como siempre.'
+    ],
+    ejemplos: [
+      { expr: '−5+(−3)−(+8)', pasos: ['−5+(−3)−(+8) = −5−3−8', '−5−3−8 = −16'], resultado: -16 },
+      { expr: '7−(−4)+(−6)', pasos: ['7−(−4)+(−6) = 7+4−6', '7+4−6 = 5'], resultado: 5 }
+    ]
+  },
+  {
+    tema: 3, titulo: 'Multiplicaciones y divisiones',
+    resumen: 'Se multiplican (o dividen) los valores y el signo sale de la regla de los signos.',
+    reglas: [
+      'Signos iguales: el resultado es positivo. (+)·(+) = +   (−)·(−) = +',
+      'Signos distintos: el resultado es negativo. (+)·(−) = −   (−)·(+) = −',
+      'En la división funciona igual: (−12):(+3) = −4.',
+      'Con varios factores: si hay un número par de negativos, el resultado es positivo.'
+    ],
+    ejemplos: [
+      { expr: '(−6)·(−4)', pasos: ['Signos iguales: positivo', '6·4 = 24'], resultado: 24 },
+      { expr: '(−45):(+9)', pasos: ['Signos distintos: negativo', '45:9 = 5, con signo −'], resultado: -5 },
+      { expr: '(−2)·3·(−5)', pasos: ['Hay dos negativos (par): positivo', '2·3·5 = 30'], resultado: 30 }
+    ]
+  },
+  {
+    tema: 4, titulo: 'Potencias sencillas',
+    resumen: 'Una potencia es un producto repetido; hay que fijarse en si el signo menos está dentro del paréntesis.',
+    reglas: [
+      'a^n significa multiplicar a por sí mismo n veces: 2^3 = 2·2·2 = 8.',
+      'Base negativa entre paréntesis: exponente par da +, exponente impar da −.',
+      'Exponente 1 da la base (a^1 = a) y exponente 0 da 1 (a^0 = 1).',
+      'Cuidado: (−3)^2 = 9, pero −3^2 = −9, porque sin paréntesis el exponente solo afecta al 3.'
+    ],
+    ejemplos: [
+      { expr: '(−2)^3', pasos: ['(−2)·(−2)·(−2)', 'Exponente impar: negativo', '= −8'], resultado: -8 },
+      { expr: '−3^2', pasos: ['El exponente solo afecta al 3: 3^2 = 9', 'Delante queda el signo −: −9'], resultado: -9 },
+      { expr: '(−3)^2', pasos: ['(−3)·(−3) = 9'], resultado: 9 }
+    ]
+  },
+  {
+    tema: 5, titulo: 'Operaciones combinadas sencillas',
+    resumen: 'Se respeta un orden: lo primero que se hace es lo que va entre paréntesis.',
+    reglas: [
+      '1.º Paréntesis (de dentro hacia fuera).',
+      '2.º Potencias.',
+      '3.º Multiplicaciones y divisiones, de izquierda a derecha.',
+      '4.º Sumas y restas, de izquierda a derecha.'
+    ],
+    ejemplos: [
+      { expr: '3·(−4)+10', pasos: ['Primero el producto: 3·(−4) = −12', 'Después la suma: −12+10 = −2'], resultado: -2 },
+      { expr: '(−6+15):(+3)', pasos: ['Paréntesis: −6+15 = 9', 'División: 9:3 = 3'], resultado: 3 },
+      { expr: '2+(−3)^2', pasos: ['Potencia: (−3)^2 = 9', 'Suma: 2+9 = 11'], resultado: 11 }
+    ]
+  }
+];
+if (typeof module !== 'undefined') module.exports = { LECCIONES: LECCIONES };
+
+  return module.exports; })();
+  var LECCIONES = __mod2.LECCIONES;
+  var __mod3 = (function () { var module = { exports: {} }; var exports = module.exports;
+// Decoración matemática (pizarra) y frases de ánimo. Sin temática navideña, sin colores fijos.
+var MENSAJES_ACIERTO = [
+  '¡Exacto!', '¡Cuenta clara!', '¡Eso es!', '¡Muy bien!', '¡Correcto!', '¡Bien razonado!', '¡Así se hace!', '¡Perfecto!',
+  '¡Buen cálculo!', '¡Signos bien puestos!', '¡Lo tienes!', '¡Estupendo!', '¡Qué buena cabeza!', '¡Sin fallos!', '¡Resultado exacto!',
+  '¡Bien aplicado!', '¡Brillante!', '¡Eso sí que es cuenta!', '¡Muy limpio!', '¡Vas muy bien!', '¡Genial!', '¡Cálculo certero!',
+  '¡Regla dominada!', '¡Buen trabajo!', '¡Justo eso!', '¡Fenomenal!', '¡A por la siguiente!', '¡Muy seguro!', '¡Qué precisión!', '¡Excelente!'
+];
+var MENSAJES_ANIMO = [
+  'Casi. Fíjate en los signos.', 'Un error ayuda a aprender.', 'Mira la regla y vuelve a intentarlo.', 'No pasa nada, seguimos.', 'Despacio, paso a paso.',
+  'Revisa el orden de las operaciones.', 'Los signos mandan: ¡míralos!', 'La próxima sale seguro.', 'Equivocarse forma parte de aprender.', 'Fíjate bien en los paréntesis.',
+  'Casi lo tienes.', 'Respira y piensa el signo primero.', 'Cada fallo enseña algo.', 'Repasa la regla y prueba otra vez.', 'Ánimo, vas mejorando.',
+  'Ve más despacio con los negativos.', 'Compruébalo con calma.', 'Ese fallo es muy común.', 'Ahora ya sabes cómo va.', 'Otra oportunidad viene enseguida.',
+  'Piensa: ¿qué signo tiene el resultado?', 'Un paso cada vez.', 'Lo importante es entender el porqué.', 'No te rindas, ya casi.', 'Practicando se aprende.',
+  'Mira la explicación y sigue.', 'Con otro número lo verás claro.', 'Tranquilidad: esto se entrena.', 'Atento a los signos de dentro y de fuera.', 'Vamos a por la siguiente.'
+];
+var MENSAJES_REFUERZO = [
+  'Vamos a repasar esto con calma.', 'Bajamos un poco para afianzar.', 'Un repaso rápido de la regla nos viene bien.', 'Practiquemos esto paso a paso.',
+  'Primero lo fácil, después volvemos a subir.', 'Reforzamos la base antes de seguir.', 'Sin prisa: lo importante es entenderlo.', 'Repasamos la regla y lo intentamos de nuevo.',
+  'Pasito a pasito, que se afianza.', 'Una vuelta atrás para ir más seguro.', 'Vamos a por tres aciertos seguidos.', 'Repasar también es avanzar.'
+];
+var TEMAS_ICONO = { 1: '+ −', 2: '( )', 3: '× ÷', 4: 'x²', 5: '[ ]' };
+var escenaLista = 'π Σ √ ∞ ÷ × ≠ ∈';
+
+// Decoración de pizarra: regla, escuadra y símbolos con tiza. Colores con variables CSS.
+function decoMates(clase) {
+  var t = 'fill="var(--tiza, #f3f1e7)" font-family="Georgia,serif"';
+  return '<svg' + (clase ? ' class="' + clase + '"' : '') + ' viewBox="0 0 200 260" role="img" aria-label="Decoración de matemáticas">' +
+    '<g fill="none" stroke="var(--tiza, #f3f1e7)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+    '<rect x="14" y="22" width="172" height="216" rx="10" stroke-dasharray="3 7" opacity=".5"/>' +
+    '<path d="M30 214 L30 150 L94 214 Z" stroke="var(--tiza2, #b9d8cf)"/>' +
+    '<path d="M40 204 L40 176 L68 204" stroke="var(--tiza2, #b9d8cf)" opacity=".7"/>' +
+    '<g stroke="var(--acento, #ffe27a)"><rect x="112" y="150" width="62" height="14" rx="2"/>' +
+    '<path d="M122 150v6M132 150v9M142 150v6M152 150v9M162 150v6"/></g>' +
+    '<circle cx="150" cy="206" r="20" stroke="var(--tiza2, #b9d8cf)"/><path d="M150 206 L168 196"/><circle cx="150" cy="206" r="2" fill="var(--tiza, #f3f1e7)"/>' +
+    '<path d="M24 122 H176" opacity=".4"/></g>' +
+    '<text x="30" y="84" font-size="62" ' + t + '>π</text>' +
+    '<text x="102" y="84" font-size="54" ' + t + '>Σ</text>' +
+    '<text x="30" y="124" font-size="30" ' + t + ' opacity=".9">√x</text>' +
+    '<text x="100" y="124" font-size="38" fill="var(--acento, #ffe27a)" font-family="Georgia,serif">∞</text>' +
+    '<text x="138" y="62" font-size="22" ' + t + ' opacity=".8">÷ × ±</text>' +
+    '<text x="22" y="46" font-size="18" ' + t + ' opacity=".7">a² + b² = c²</text>' +
+    '</svg>';
+}
+if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES_ACIERTO, MENSAJES_ANIMO: MENSAJES_ANIMO, MENSAJES_REFUERZO: MENSAJES_REFUERZO, TEMAS_ICONO: TEMAS_ICONO, decoMates: decoMates, escenaLista: escenaLista };
+
+  return module.exports; })();
+  var MENSAJES_ACIERTO = __mod3.MENSAJES_ACIERTO;
+  var MENSAJES_ANIMO = __mod3.MENSAJES_ANIMO;
+  var MENSAJES_REFUERZO = __mod3.MENSAJES_REFUERZO;
+  var TEMAS_ICONO = __mod3.TEMAS_ICONO;
+  var decoMates = __mod3.decoMates;
+  var escenaLista = __mod3.escenaLista;
+
+  var Generador = (function () {
+    var ri = function (a, b) { return RNG.ri(a, b); };
+    var chance = function (p) { return RNG.chance(p); };
+    var sg = function () { return RNG.sg(); };
+    var num = function (n) { return n < 0 ? M + (-n) : String(n); };                     // -5 -> "−5"
+    var par = function (n) { return n < 0 ? '(' + M + (-n) + ')' : String(n); };         // paréntesis solo si negativo
+    var opnd = function (n, sp) { return n < 0 ? '(' + M + (-n) + ')' : (chance(sp) ? '(+' + n + ')' : String(n)); };
+    function divisores(n, lo, hi, minCociente) {
+      var r = []; for (var d = lo; d <= hi; d++) if (n % d === 0 && n / d >= (minCociente || 1)) r.push(d); return r;
+    }
+    // base de potencia: negativa siempre entre paréntesis; positiva tras un "−" siempre como (+n)
+    function potT(b, e, trasMenos, pSigno) {
+      var t;
+      if (b < 0) t = '(' + M + (-b) + ')';
+      else t = (trasMenos || chance(pSigno === undefined ? 0.3 : pSigno)) ? '(+' + b + ')' : String(b);
+      return t + '^' + e;
+    }
+    // "a±b" con valor N, términos distintos de 0 y de módulo >= 2 (sin rellenos tipo (43−1))
+    function parSuma(N, extra) {
+      var mag = Math.max(9, Math.ceil(Math.abs(N) * 0.6) + 4) + (extra || 0);
+      for (var k = 0; k < 200; k++) {
+        if (k === 100) mag += 8;
+        var a = ri(-mag, mag), b = N - a;
+        if (Math.abs(a) < 2 || Math.abs(b) < 2 || Math.abs(b) > mag + 12) continue;
+        var f = RNG.next(), t = num(a);
+        if (b > 0) t += f < 0.6 ? '+' + b : (f < 0.8 ? '+(+' + b + ')' : M + '(' + M + b + ')');
+        else { var m = -b; t += f < 0.6 ? M + m : (f < 0.8 ? '+(' + M + m + ')' : M + '(+' + m + ')'); }
+        return t;
+      }
+      return null;
+    }
+    // valor de grupo no trivial: |g| en [lo, hi] con signo aleatorio
+    function valG(lo, hi) { return sg() * ri(lo, hi); }
+
+    /* ---- Categoría 1: suma y resta ---- */
+    // n = nº de términos (sueltos o dentro de grupos), lo/hi = módulo de los números,
+    // sp = prob. de poner el signo del término entre paréntesis, gr = nº de grupos (a±b)
+    var CFG_SUMA = [null,
+      { n: 2, lo: 2, hi: 15, sp: 0, gr: 0 },
+      { n: 2, lo: 2, hi: 15, sp: 1, gr: 0 },
+      { n: 2, lo: 5, hi: 25, sp: 1, gr: 0, par0: 0.6 },
+      { n: 3, lo: 2, hi: 12, sp: 0.6, gr: 0 },
+      { n: 3, lo: 3, hi: 25, sp: 0.85, gr: 0, par0: 0.4 },
+      { n: 4, lo: 2, hi: 20, sp: 0.8, gr: 0, par0: 0.3 },
+      { n: 4, lo: 3, hi: 30, sp: 0.7, gr: 1 },
+      { n: 5, lo: 3, hi: 30, sp: 0.7, gr: 1 },
+      { n: 5, lo: 3, hi: 40, sp: 0.7, gr: 2 },
+      { n: 6, lo: 3, hi: 60, sp: 0.7, gr: 2 }];
+    function genSuma(d) {
+      var c = CFG_SUMA[d], mag = function () { return ri(c.lo, c.hi); };
+      var piezas = [];                                   // {g:true,inner,val} | {v:valor}
+      var quedan = c.n, grupos = c.gr;
+      while (quedan > 0) {
+        if (grupos > 0 && quedan >= 2) {
+          var a = sg() * mag(), b = sg() * mag(), gv = a + b;
+          if (Math.abs(gv) < 2) continue;                // grupo que vale 0 o ±1: trivial
+          piezas.push({ g: true, a: a, b: b, val: gv }); quedan -= 2; grupos--;
+        } else { piezas.push({ v: sg() * mag() }); quedan--; }
+      }
+      // si hay grupos pedidos, que no queden todos al final: baraja suave
+      if (c.gr) for (var i = piezas.length - 1; i > 0; i--) { var j = ri(0, i), t = piezas[i]; piezas[i] = piezas[j]; piezas[j] = t; }
+      var s = '', tieneMenos = false;
+      piezas.forEach(function (p, k) {
+        var piece, v;
+        if (p.g) piece = '(' + num(p.a) + (p.b < 0 ? M + (-p.b) : '+' + p.b) + ')';
+        if (k === 0) {
+          if (p.g) s += piece;
+          else s += (c.par0 && chance(c.par0)) ? '(' + (p.v < 0 ? M : '+') + Math.abs(p.v) + ')' : num(p.v);
+        } else if (p.g) {
+          s += (chance(0.5) ? '+' : M) + piece;
+        } else {
+          v = p.v;
+          if (chance(c.sp)) s += chance(0.5) ? '+(' + (v < 0 ? M : '+') + Math.abs(v) + ')' : M + '(' + (v < 0 ? '+' : M) + Math.abs(v) + ')';
+          else s += (v < 0 ? M : '+') + Math.abs(v);
+        }
+      });
+      // al menos un signo menos visible en los niveles bajos (sin sumas triviales 5+4)
+      if (d <= 3 && s.indexOf(M) < 0) return null;
+      return { p: s };
+    }
+
+    /* ---- Categoría 2: multiplicación y división ---- */
+    function lead(v, parP, sp) {
+      if (v < 0) return chance(parP) ? '(' + M + (-v) + ')' : M + (-v);
+      return chance(sp * 0.5) ? '(+' + v + ')' : String(v);
+    }
+    // ops: cadena de '*' / ':' / '?' (azar). fr: rango del primer factor; mr: factores de ·; dr: divisores; qr: cocientes
+    function cadena(pat, fr, mr, dr, qr, parP, sp, cap, exigeNeg) {
+      var ops = pat.split('').map(function (o) { return o === '?' ? RNG.pick(['*', ':']) : o; });
+      var v;
+      if (ops[0] === ':') v = sg() * ri(dr[0], dr[1]) * ri(qr[0], qr[1]); else v = sg() * ri(fr[0], fr[1]);
+      var txt = lead(v, parP, sp), neg = v < 0;
+      for (var i = 0; i < ops.length; i++) {
+        var x, o = ops[i];
+        if (o === ':') {
+          var ds = divisores(Math.abs(v), dr[0], dr[1], 2); if (!ds.length) return null;
+          x = RNG.pick(ds) * sg(); v = v / x;
+        } else { x = sg() * ri(mr[0], mr[1]); v = v * x; }
+        if (Math.abs(v) > cap) return null;
+        if (x < 0) neg = true;
+        txt += (o === '*' ? '·' : ':') + opnd(x, sp);
+      }
+      if (exigeNeg && !neg) return null;
+      return { p: txt };
+    }
+    // división donde el dividendo es grande (dividendo = divisor x cociente)
+    function genMD(d) {
+      switch (d) {
+        case 1: {                                       // nivel de arranque: sin paréntesis (−3·6, −12:4)
+          var fa = ri(2, 4), fb = ri(2, 4);
+          return { p: chance(0.7) ? M + fa + '·' + fb : M + (fa * fb) + ':' + fb };
+        }
+        case 2: return cadena(chance(0.85) ? '*' : ':', [4, 9], [4, 9], [2, 5], [2, 5], 0.9, 0.5, 81, false);
+        case 3: return cadena('?', [2, 9], [2, 9], [2, 9], [2, 9], 0.7, 0.4, 81, false);
+        case 4: return cadena('?', [2, 12], [2, 12], [2, 12], [2, 12], 0.7, 0.4, 144, false);
+        case 5: return RNG.chance(0.5) ? cadena('*', [13, 25], [2, 9], [2, 5], [2, 5], 0.5, 0.3, 250, false) : cadena(':', [2, 5], [2, 5], [2, 12], [11, 20], 0.5, 0.3, 240, false);
+        case 6: return cadena('**', [2, 6], [2, 6], [2, 5], [2, 5], 0.8, 0.3, 144, false);
+        case 7: return cadena(RNG.pick(['*:', ':*']), [2, 9], [2, 9], [2, 9], [2, 9], 0.7, 0.3, 120, false);
+        case 8: return cadena(RNG.pick(['*:', ':*', '**', '::']), [2, 12], [2, 12], [2, 12], [2, 12], 0.6, 0.3, 200, false);
+        case 9: return cadena(RNG.pick(['*:*', '**:', ':**', '*::']), [2, 9], [2, 9], [2, 9], [2, 9], 0.5, 0.2, 250, false);
+        default: return cadena(RNG.pick(['*:*', '**:', ':**', '*::', ':*:']), [3, 12], [2, 12], [2, 12], [2, 12], 0.5, 0.2, 250, false);
+      }
+    }
+
+    /* ---- Categoría 3: potencias ---- */
+    function pTexto(b, e, trasMenos) { return potT(b, e, trasMenos); }
+    function termino3(b, e, kmax, pura) {
+      if (pura) return pTexto(b, e, false);
+      var k = ri(2, kmax), f = RNG.next();
+      if (f < 0.3) return pTexto(b, e, false) + '+' + k;
+      if (f < 0.55) return k + '+' + pTexto(b, e, false);
+      if (f < 0.8) return pTexto(b, e, false) + M + k;
+      return k + M + pTexto(b, e, true);
+    }
+    function genPot(d) {
+      var b, e, o, k, c, txt;
+      switch (d) {
+        case 1: { var t1 = termino3(ri(2, 5), 2, 15, chance(0.4));      // nivel de arranque: sin (+n)
+          if (t1.indexOf('(+') >= 0 && /−\(\+/.test(t1)) return null;
+          return { p: t1.replace(/\(\+(\d+)\)/g, '$1') }; }
+        case 2: o = RNG.next();                                       // exponentes 0 y 1 y potencias de 10
+          if (o < 0.35) return { p: termino3(ri(2, 5), ri(0, 1), 15, chance(0.1)) };
+          if (o < 0.55) return { p: termino3(-ri(2, 5), ri(0, 1), 15, chance(0.1)) };
+          return { p: termino3(10, ri(2, 3), 20, chance(0.1)) };
+        case 3: e = ri(2, 40); k = ri(2, 9); o = RNG.next();           // (−1) elevado a exponentes grandes
+          if (o < 0.12) return { p: potT(-1, e) + M + potT(-1, ri(2, 40), true) };
+          if (o < 0.22) return { p: M + potT(-1, e) + '+' + k };
+          if (o < 0.3) return { p: k + '+' + potT(-1, e) };
+          if (o < 0.45) return { p: k + M + potT(-1, e) };
+          if (o < 0.6) return { p: k + '·' + potT(-1, e) };
+          if (o < 0.8) return { p: k + '·' + potT(-1, e) + '+' + ri(2, 15) };
+          return { p: ri(2, 15) + M + k + '·' + potT(-1, e) };
+        case 4: return { p: termino3(ri(2, 5), 3, 20, chance(0.25)) };
+        case 5: return { p: termino3(-ri(2, 5), chance(0.65) ? 3 : 2, 20, chance(0.15)) };
+        case 6: b = sg() * ri(2, 5); e = ri(2, 3); if (Math.abs(b) <= 3 && chance(0.5)) e = 4; return { p: termino3(b, e, 25, chance(0.1)) };
+        case 7: c = RNG.pick([[2, 4, 4], [3, 4, 4], [2, 4, 5]]); b = sg() * c[0]; e = ri(c[1], c[2]); return { p: termino3(b, e, 20, chance(0.2)) };
+        case 8: b = sg() * ri(2, 4); e = ri(2, 4); k = ri(2, 9); o = RNG.next();
+          if (o < 0.4) return { p: k + '·' + potT(b, e, false) + sgnOp() + ri(2, 9) };
+          if (o < 0.8) return { p: potT(b, e, false) + '·' + par(chance(0.5) ? k : -k) + sgnOp() + ri(2, 9) };
+          return { p: ri(2, 9) + sgnOp() + par(-k) + '·' + potT(b, e, false) };
+        case 9: { var b1 = sg() * ri(2, 5), b2 = sg() * ri(2, 4), e1 = ri(2, 3), e2 = ri(2, 4); o = RNG.next();
+          var op = o < 0.4 ? '+' : (o < 0.8 ? M : '·');
+          return { p: potT(b1, e1, false) + op + potT(b2, e2, op === M) }; }
+        default: o = RNG.next();
+          var g = valG(2, 4), inner = parSuma(g, -4); if (!inner) return null;
+          if (o < 0.4) return { p: ri(2, 4) + '·(' + inner + ')^' + ri(2, 3) + (chance(0.5) ? '+' : M) + ri(2, 15) };
+          if (o < 0.8) { var op2 = sgnOp(); return { p: '(' + inner + ')^' + ri(2, 3) + op2 + potT(sg() * ri(2, 4), ri(2, 3), op2 === M) }; }
+          return { p: M + '(' + M + ri(2, 4) + ')^' + ri(2, 4) + sgnOp() + '(' + inner + ')^2' };
+      }
+    }
+    var sgnOp = function () { return chance(0.5) ? '+' : M; };
+
+    /* ---- Categoría 4: operaciones combinadas ---- */
+    var COMB = {
+      1: function () {
+        var a = ri(2, 15), b = ri(2, 6), c = ri(2, 6), op = sgnOp(), pr = b + '·' + c;
+        if (chance(0.35)) { var dv = ri(2, 6), qq = ri(2, 9); pr = dv * qq + ':' + dv; if (qq < 2) return null; }
+        return { p: chance(0.5) ? a + op + pr : (op === M ? pr + M + a : pr + '+' + a) };
+      },
+      2: function () {
+        var x = ri(2, 9), y = ri(2, 9), z = ri(2, 20), op = sgnOp();
+        var prod = chance(0.5) ? x + '·' + par(-y) : par(-x) + '·' + y;
+        if (chance(0.3)) prod = par(-x) + '·' + par(-y);
+        return { p: chance(0.5) ? prod + op + z : z + op + prod };
+      },
+      3: function () {
+        var g = valG(2, 9), c = sg() * ri(2, 6), s = parSuma(g);
+        if (!s) return null;
+        return { p: chance(0.5) ? '(' + s + ')·' + par(c) : par(c) + '·(' + s + ')' };
+      },
+      4: function () {
+        var dv = ri(2, 6), q = ri(2, 9), N = sg() * dv * q, ds = sg(), g = parSuma(N);
+        if (!g) return null;
+        return { p: '(' + g + '):' + (ds < 0 ? '(' + M + dv + ')' : opnd(dv, 0.5)) };
+      },
+      5: function () {
+        var a = ri(2, 15), b = sg() * ri(2, 4), e = ri(2, 3), op = sgnOp(), o = RNG.next();
+        if (o < 0.5) return { p: chance(0.5) ? a + op + potT(b, e, op === M) : potT(b, e, false) + op + a };
+        if (o < 0.8) return { p: ri(2, 4) + '·' + potT(b, 2, false) + (chance(0.5) ? '+' : M) + ri(2, 9) };
+        return { p: potT(b, e, false) + op + ri(2, 4) + '·' + par(sg() * ri(2, 5)) };
+      },
+      6: function () {
+        var dv = ri(2, 6), q = ri(2, 8), N = sg() * dv * q, ds = sg() * dv;
+        return { p: num(N) + ':' + par(ds) + sgnOp() + ri(2, 5) + '·' + par(sg() * ri(2, 5)) };
+      },
+      7: function () {
+        if (chance(0.5)) {
+          var s1 = parSuma(valG(2, 6), -2), s2 = parSuma(valG(2, 6), -2);
+          if (!s1 || !s2) return null;
+          return { p: '(' + s1 + ')·(' + s2 + ')' };
+        }
+        var a = ri(2, 6), s = parSuma(valG(2, 8), -1);
+        if (!s) return null;
+        return { p: a + '·(' + s + ')' + sgnOp() + ri(2, 9) };
+      },
+      8: function () {
+        if (chance(0.55)) {
+          var b = sg() * ri(2, 4), e = ri(2, 3), op = chance(0.6) ? '+' : M;
+          return { p: potT(b, e, false) + op + par(sg() * ri(2, 5)) + '·' + par(sg() * ri(2, 5)) };
+        }
+        var N = sg() * ri(2, 6), N2 = N * N, ds = divisores(N2, 2, 12);
+        if (!ds.length) return null;
+        var s = parSuma(N, -2); if (!s) return null;
+        return { p: '(' + s + ')^2:' + par(RNG.pick(ds) * sg()) };
+      },
+      9: function () {
+        var dv = ri(2, 6), q = ri(2, 8), N = sg() * dv * q, ds = sg() * dv, s = parSuma(N);
+        if (!s) return null;
+        return { p: '(' + s + '):' + par(ds) + sgnOp() + ri(2, 5) + '·' + par(sg() * ri(2, 5)) + sgnOp() + ri(2, 9) };
+      },
+      10: function () {
+        var n1 = sg() * ri(2, 9), c = sg() * ri(2, 9), prod = Math.abs(n1 * c), ds = divisores(prod, 2, 10, 2);
+        if (!ds.length) return null;
+        var dd = RNG.pick(ds) * sg(), s = parSuma(n1, -2); if (!s) return null;
+        var p = '[(' + s + ')·' + par(c) + ']:' + par(dd);
+        if (chance(0.6)) { var op = sgnOp(); p += op + potT(sg() * ri(2, 4), ri(2, 3), op === M); }
+        return { p: p };
+      }
+    };
+    var ORDEN_COMB = [0, 1, 3, 2, 4, 5, 7, 6, 8, 10, 9];   // orden de dificultad creciente medido (ver tests/mates_nivel.cjs)
+    function genComb(d) { return COMB[ORDEN_COMB[d]](); }
+
+    var GEN = [null, genSuma, genMD, genPot, genComb];
+    var CAP = [0, 200, 250, 1000, 200];
+    var CAP_RES_POT = 250;
+
+    function longitudVisual(p) { return p.length - (p.match(/\^/g) || []).length * 0.5; }  // el exponente en <sup> ocupa menos
+    function aHTML(p) { return p.replace(/\^(\d+)/g, '<sup>$1</sup>'); }
+    function expHTML(txt) { return aHTML(txt).replace(/\n/g, '<br>'); }
+
+    // ¿pregunta trivial? (·1, :1, ·0, grupos que valen 0 o ±1, 1^n, 0^n, bases 1)
+    function trivial(cat, nivel, arbol, valor) {
+      var malo = false;
+      (function rec(n) {
+        var i;
+        if (n.k === 'm') for (i = 0; i < n.t.length; i++) { var f = n.t[i]; if (f.k === 'n' && Math.abs(f.v) <= 1) malo = true; }
+        if (n.k === 'p' && n.b.k === 'n' && (n.b.v === 0 || n.b.v === 1)) malo = true;
+        if (n.k === 'p' && n.b.k === 'n' && n.b.v === -1 && cat !== 3) malo = true;
+        if (n.k === 'g') { var gv = Evaluador.valor(n.x); if (gv === 0 || (cat !== 3 && Math.abs(gv) === 1)) malo = true; }
+        var h = n.k === 'u' || n.k === 'g' ? [n.x] : n.k === 'p' ? [n.b, n.e] : (n.k === 's' || n.k === 'm') ? n.t : [];
+        for (i = 0; i < h.length; i++) rec(h[i]);
+      })(arbol);
+      if (valor === 0 && (nivel <= 3 || cat === 3 || RNG.chance(0.7))) malo = true;
+      return malo;
+    }
+    // forma = la pregunta sin cifras (signos, paréntesis y operadores): «−n+(−n)», «n·(+n)−n»…
+    function forma(p) { return p.replace(/\d+/g, 'n'); }
+    function formasRecientes(ev) { return ev.slice(-3).map(forma); }
+    // cifras sueltas de la pregunta (sin exponentes)
+    function cifras(p) { return (p.replace(/\^\d+/g, '').match(/\d+/g) || []).map(Number); }
+    // ¿repite demasiados números de alguna de las últimas 4 preguntas?
+    function solapa(p, ev) {
+      var mias = cifras(p), umbral = Math.max(1, Math.ceil(mias.length / 2));
+      return ev.slice(-4).some(function (q) {
+        var otras = cifras(q), comunes = 0, vistos = {};
+        mias.forEach(function (x) { if (!vistos[x] && otras.indexOf(x) >= 0) { comunes++; vistos[x] = 1; } });
+        return comunes >= umbral;
+      });
+    }
+    function porNivel(cat, nivel) {
+      var NOM = NOMBRES_CAT[cat - 1];
+      return NOM;
+    }
+    function fabricar(cat, nivel, g, ev, ar) {
+      var ex = Explicar.explicar(g.p, cat);
+      var html = '<div class="pasos">' + ex.lineas.map(function (l) { return '<div>' + aHTML(l) + '</div>'; }).join('') + '</div>' + (ex.regla ? '<div class="regla">💡 ' + aHTML(ex.regla) + '</div>' : '');
+      return { cat: cat, catNombre: porNivel(cat, nivel), nivel: nivel, p: g.p, texto: g.p, html: aHTML(g.p), valor: ev.valor, expl: ex.texto, explHTML: html, pasos: ex.lineas, regla: ex.regla };
+    }
+    var SEGURAS = [null, M + '7+12', M + '6·7', '(' + M + '2)^3', '3·(' + M + '4)+10'];
+    // generar(cat 1..4, nivel 1..10, opciones {evitar:[textos]}). NUNCA devuelve otra categoría.
+    function generar(cat, nivel, opc) {
+      cat = clamp(cat | 0, 1, 4); nivel = clamp(nivel | 0, 1, 10);
+      var evitar = (opc && opc.evitar) || [], mejor = null, repetida = null;
+      for (var i = 0; i < 1400; i++) {
+        var relajado = i >= 400;                         // tras 400 intentos fallidos se permite repetir (la menos reciente), sin cambiar de categoría
+        var g = ((opc && opc.gen) || GEN[cat])(nivel);
+        if (!g) continue;
+        var ev = Evaluador.detallado(g.p);
+        if (!ev.ok || !isFinite(ev.valor) || Math.floor(ev.valor) !== ev.valor) continue;
+        if (Math.abs(ev.valor) > ((opc && opc.cap) || CAP[cat])) continue;
+        if (cat === 3 && !(opc && opc.gen) && Math.abs(ev.valor) > CAP_RES_POT && g.p !== '10^3' && g.p !== '(+10)^3') continue;
+        if (cat === 4 && ev.max > 200) continue;
+        var ar;
+        try { ar = Evaluador.parsear(g.p); } catch (e) { continue; }
+        if (trivial(cat, nivel, ar, ev.valor)) continue;
+        if (opc && opc.sinCero && ev.valor === 0) continue;
+        if (!relajado && evitar.indexOf(g.p) >= 0) continue;
+        // variedad dentro del nivel: 1.ª fase, otra FORMA y otros NÚMEROS que las últimas preguntas; 2.ª fase, solo otros números
+        if (i < 300 && evitar.length) {
+          if (i < 150 && formasRecientes(evitar).indexOf(forma(g.p)) >= 0) continue;
+          if (solapa(g.p, evitar)) continue;
+        }
+        var len = longitudVisual(g.p);
+        if (len <= CFG.MAXLEN_VISUAL) { if (evitar.indexOf(g.p) < 0 || relajado) return fabricar(cat, nivel, g, ev, ar); }
+        if (!mejor || len < mejor.len) mejor = { len: len, g: g, ev: ev, ar: ar };
+      }
+      if (mejor) return fabricar(cat, nivel, mejor.g, mejor.ev, mejor.ar);
+      var fb = SEGURAS[cat], evf = Evaluador.detallado(fb);
+      return fabricar(cat, nivel, { p: fb }, evf, Evaluador.parsear(fb));
+    }
+    /* ---- Repaso: 5 temas, cada uno con niveles 1..10 ---- */
+    var H = { ri: ri, chance: chance, sg: sg, pick: function (a) { return RNG.pick(a); }, M: M };
+    var NIVEL_SUMA_CP = [0, 2, 2, 3, 3, 4, 5, 6, 7, 8, 9];       // nivel del tema 2 -> nivel de genSuma (siempre con paréntesis)
+    var IDX_COMB_SENC = [0, 1, 2, 3, 5, 4, 6, 7, 8, 9, 9];       // tema 5 -> plantilla de COMB (de más sencilla a menos; sin corchetes)
+    var TEMAS = [null,
+      { cat: 1, gen: function (d) { return typeof genSumaSP === 'function' ? genSumaSP(d, H) : null; } },
+      { cat: 1, gen: function (d) { var r = genSuma(NIVEL_SUMA_CP[d]); return (r && r.p.indexOf('(') >= 0) ? r : null; } },
+      { cat: 2, gen: genMD },
+      { cat: 3, gen: function (d) { return typeof genPotSenc === 'function' ? genPotSenc(d, H) : null; }, cap: 1000 },
+      { cat: 4, gen: function (d) { return COMB[IDX_COMB_SENC[d]](); } }];
+    function generarTema(tema, nivel, opc) {
+      tema = clamp(tema | 0, 1, 5); nivel = clamp(nivel | 0, 1, 10);
+      var T = TEMAS[tema], o = { evitar: (opc && opc.evitar) || [], gen: T.gen, cap: T.cap, sinCero: true };
+      var q = generar(T.cat, nivel, o);
+      q.tema = tema;
+      return q;
+    }
+    return { generar: generar, generarTema: generarTema, aHTML: aHTML, expHTML: expHTML, longitudVisual: longitudVisual, _COMB: COMB };
+  })();
+
+  /* ===================================================================
+   *  BAYES: creencia sobre la capacidad theta de cada categoría.
+   *  Rejilla discreta de theta en [0,12] (paso 0,5; el nivel mostrado se recorta a 1..10).
+   *  Verosimilitud: P(acierto|theta,d) = c0 + (1-c0)·sigmoide((theta-d)/s), marginalizada
+   *  sobre tres pendientes s (mezcla) para tolerar alumnos con curva más suave.
+   *  Posterior ∝ prior · L^peso (verosimilitud atemperada según evidencia),
+   *  con difusión y OLVIDO del 5 % hacia una gaussiana ancha (alumno que mejora).
+   * =================================================================== */
+  var Bayes = (function () {
+    var GRID = []; for (var t = 0; t <= 12.001; t += 0.5) GRID.push(t);
+    var C0 = 0.05, SS = [1.0, 1.6, 2.4], OBJETIVO = 0.69, OLVIDO = 0.06;
+    function sig(x) { return 1 / (1 + Math.exp(-x)); }
+    function pAcierto(theta, d) { var s = 0; for (var i = 0; i < SS.length; i++) s += C0 + (1 - C0) * sig((theta - d) / SS[i]); return s / SS.length; }
+    function norm(p) { var s = 0, i; for (i = 0; i < p.length; i++) s += p[i]; for (i = 0; i < p.length; i++) p[i] /= s; return p; }
+    function prior(mu, sd) { return norm(GRID.map(function (t) { var z = (t - mu) / sd; return Math.exp(-0.5 * z * z); })); }
+    function media(p) { var m = 0; for (var i = 0; i < p.length; i++) m += p[i] * GRID[i]; return m; }
+    function actualizar(post, d, acierto, peso) {
+      var n = post.map(function (pi, i) {
+        var L = pAcierto(GRID[i], d); if (!acierto) L = 1 - L;
+        return pi * Math.pow(Math.max(L, 1e-9), peso);
+      });
+      norm(n);
+      // pequeña difusión (olvido local)
+      var o = n.map(function (v, i) { var a = n[i - 1] === undefined ? v : n[i - 1], b = n[i + 1] === undefined ? v : n[i + 1]; return 0.94 * v + 0.03 * a + 0.03 * b; });
+      norm(o);
+      // olvido del 5 % hacia una gaussiana ancha centrada en la media actual (permite que el alumno que mejora se note)
+      var mu = media(o), gs = 0, g = GRID.map(function (t) { var z = (t - mu) / 2; var e = Math.exp(-0.5 * z * z); gs += e; return e; });
+      for (var i = 0; i < o.length; i++) o[i] = (1 - OLVIDO) * o[i] + OLVIDO * g[i] / gs;
+      return norm(o);
+    }
+    function desv(p) { var m = media(p), v = 0; for (var i = 0; i < p.length; i++) v += p[i] * (GRID[i] - m) * (GRID[i] - m); return Math.sqrt(v); }
+    function predictivo(p, d) { var s = 0; for (var i = 0; i < p.length; i++) s += p[i] * pAcierto(GRID[i], d); return s; }
+    // peso de la evidencia según resultado y rapidez (r = tiempo / tiempo objetivo)
+    function peso(tipo, t, r, tObj) {
+      if (tipo === 'acierto') return r < 0.6 ? 1.0 : (r < 1.3 ? 0.85 : 0.6);   // rápido = fuerte; lento = más débil
+      if (tipo === 'error') return t < Math.max(1.0, 0.12 * (tObj || 10)) ? 0.7 : 1.2;   // error muy rápido = adivinar: peso moderado
+      return 0.7;                                                               // "no sé"
+    }
+    return { GRID: GRID, prior: prior, actualizar: actualizar, media: media, desv: desv, predictivo: predictivo, peso: peso, pAcierto: pAcierto, OBJETIVO: OBJETIVO };
+  })();
+
+  /* ===================================================================
+   *  PUNTUACIÓN (prima la corrección sobre la rapidez)
+   *    acierto = 10·d, + bonus de tiempo de hasta +10 % (nunca más), x racha (1,1 cada 3, tope 1,3)
+   *    error   = -5·d (el total no baja de 0); Contrarreloj: ranking = aciertos - 2·errores
+   * =================================================================== */
+  var Puntuacion = {
+    tObjetivo: function (d) { return (7 + 2 * d) * CFG.FACTOR_TIEMPO; },               // segundos
+    base: function (d) { return 10 * d; },
+    fraccion: function (d, t) { t = Number(t); if (!isFinite(t)) t = Infinity; return clamp(1 - Math.max(0, t) / Puntuacion.tObjetivo(d), 0, 1); },
+    bonus: function (d, t) { return CFG.BONUS_MAX * 10 * d * Puntuacion.fraccion(d, t); },   // puntos de bonus antes de la racha
+    multiplicador: function (racha) { return Math.min(CFG.RACHA_TOPE, Math.round((1 + CFG.RACHA_PASO * Math.floor(racha / 3)) * 100) / 100); },
+    acierto: function (d, t, racha) {
+      var m = Puntuacion.multiplicador(racha), base = Puntuacion.base(d);
+      var bruto = Math.round((base + Puntuacion.bonus(d, t)) * m);
+      return Math.min(bruto, Math.floor(base * m * (1 + CFG.BONUS_MAX) + 1e-9));       // el redondeo nunca rompe el tope
+    },
+    penalizacion: function (d) { return CFG.PENAL_PUNTOS * d; },
+    // puntuación principal del ranking de una partida guardada
+    rank: function (p) { return p.modo === 'CR' ? p.aciertos - CFG.ERR_PESO_RANK * p.errores : p.puntos; }
+  };
+
+  /* ===================================================================
+   *  ALMACÉN: localStorage siempre dentro de try/catch; si falla, memoria.
+   * =================================================================== */
+  var Almacen = {
+    clave: 'repaso-mates-v1',
+    mem: { partidas: [], mute: false, pin: { f: 0, hasta: 0 }, prog: {} },
+    cargar: function () {
+      try { var s = localStorage.getItem(this.clave); if (s) { var o = JSON.parse(s); if (o && o.partidas) { this.mem = o; if (!this.mem.pin) this.mem.pin = { f: 0, hasta: 0 }; if (!this.mem.prog) this.mem.prog = {}; } } } catch (e) { /* sin almacenamiento */ }
+    },
+    guardar: function () { try { localStorage.setItem(this.clave, JSON.stringify(this.mem)); return true; } catch (e) { return false; } },
+    anadir: function (p) { this.mem.partidas.push(p); this.guardar(); },
+    partidas: function () { return this.mem.partidas.slice(); },
+    borrar: function () { this.mem.partidas = []; this.guardar(); },
+    // progreso por alumno y tema: { theta, n, ts }
+    prog: function (lista, tema) { return (this.mem.prog || {})[lista + '-' + tema] || null; },
+    setProg: function (lista, tema, v) { if (!this.mem.prog) this.mem.prog = {}; this.mem.prog[lista + '-' + tema] = v; this.guardar(); },
+    getMute: function () { return !!this.mem.mute; },
+    setMute: function (v) { this.mem.mute = !!v; this.guardar(); }
+  };
+
+  /* ===================================================================
+   *  SONIDO: WebAudio generado por código, solo tras un gesto.
+   * =================================================================== */
+  var Sonido = {
+    ctx: null, mute: false,
+    despertar: function () {
+      try {
+        if (!this.ctx) { var C = G.AudioContext || G.webkitAudioContext; if (!C) return; this.ctx = new C(); }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+      } catch (e) { this.ctx = null; }
+    },
+    tono: function (f, t0, dur, tipo, vol) {
+      if (this.mute || !this.ctx) return;
+      try {
+        var o = this.ctx.createOscillator(), g = this.ctx.createGain(), t = this.ctx.currentTime + t0;
+        o.type = tipo || 'sine'; o.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + dur + 0.05);
+      } catch (e) { /* audio no disponible */ }
+    },
+    tecla: function () { this.tono(620, 0, 0.05, 'triangle', 0.06); },
+    acierto: function () { this.tono(660, 0, 0.12, 'sine', 0.16); this.tono(880, 0.1, 0.2, 'sine', 0.16); this.tono(1320, 0.2, 0.25, 'sine', 0.08); },
+    error: function () { this.tono(220, 0, 0.18, 'sawtooth', 0.08); this.tono(165, 0.15, 0.3, 'sawtooth', 0.08); },
+    fin: function () { var n = [523, 659, 784, 1047]; for (var i = 0; i < n.length; i++) this.tono(n[i], i * 0.14, 0.3, 'triangle', 0.15); },
+    campana: function () { this.tono(1568, 0, 0.6, 'sine', 0.1); this.tono(2093, 0.05, 0.6, 'sine', 0.07); }
+  };
+
+  /* ===================================================================
+   *  RELOJ MONÓTONO: performance.now() con cota inferior (nunca retrocede
+   *  aunque el reloj del sistema cambie) y, si no existe, Date.now() corregido.
+   * =================================================================== */
+  var ultimoMono = 0;
+  function ahoraMs() {
+    var t = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (t < ultimoMono) t = ultimoMono;
+    ultimoMono = t; return t;
+  }
+
+  /* ===================================================================
+   *  JUEGO (lógica; la interfaz se engancha a través de UI)
+   * =================================================================== */
+  var J = null;                // partida actual
+  var timerAvance = null;      // id del setTimeout de avance tras un acierto
+  var UI = { listo: false, pant: 'lista', ctx: 'lista' };
+  var ultimoResultado = null;
+  var alumnoActual = null;
+
+  function fmt1(x) { return (Math.round(x * 10) / 10).toFixed(1).replace('.', ','); }
+  function normModo(m) {
+    var s = String(m).toLowerCase();
+    if (s === 'cr' || s === 'contrarreloj' || s === '1') return 'CR';
+    if (s === 'rp' || s === 'repaso' || s === '3') return 'RP';
+    if (s === 'rm' || s === 'rey' || s === 'rey de las mates' || s === 'el rey de las mates' || s === '2') return 'RM';
+    return null;
+  }
+  /* Un motor de dificultad por modo (mismos módulos, distinta configuración):
+   *  - CR (contrarreloj): arranque suave. 1.ª pregunta de nivel 1 (sin paréntesis), categorías que se abren poco a poco,
+   *    nivel objetivo con ≈ 69 % de acierto previsto.
+   *  - RM (el rey de las mates): exigente desde el principio. Las 4 categorías abiertas, 1.ª pregunta de nivel 4,
+   *    creencia inicial centrada en el nivel 4-5 y nivel objetivo con ≈ 60 % de acierto previsto (más difícil). */
+  var PERFILES = {
+    CR: { prior: [[1.6, 1.8], [2.5, 2.2], [2.5, 2.2], [2.5, 2.2]], primer: 1, objetivo: Bayes.OBJETIVO, todas: false },
+    RM: { prior: [[4.5, 2.0], [4.5, 2.0], [4.5, 2.0], [4.5, 2.0]], primer: 4, objetivo: 0.6, todas: true },
+    RP: { prior: [[1.5, 1.8]], primer: 1, objetivo: 0.68, todas: false }   // repaso: UN tema; se ajusta con el progreso guardado
+  };
+  var TEMAS_NOMBRE = ['', 'Sumas y restas sin paréntesis', 'Sumas y restas con paréntesis', 'Multiplicaciones y divisiones', 'Potencias sencillas', 'Operaciones combinadas'];
+
+  function nuevaPartida(modo, lista, tema) {
+    var perfilRP = null, ini = null;
+    if (modo === 'RP') {
+      var pr = Almacen.prog(lista, tema);
+      ini = pr ? clamp(pr.theta - 0.7, 1, 9.5) : 1.2;                 // si ya repasó este tema, retoma un poco por debajo (afianzar)
+      perfilRP = { prior: [[ini, pr ? 1.6 : 1.8]], primer: Math.max(1, Math.round(ini)), objetivo: 0.68, todas: false };
+    }
+    J = {
+      tema: tema || 0, refuerzo: false, refNivel: 1, refAciertos: 0, nRefuerzos: 0, ventana: [], nivelIni: ini, fallos: {}, extra: {},
+      modo: modo, lista: lista, inicio: Date.now(),
+      perfil: perfilRP || PERFILES[modo] || PERFILES.CR,
+      creencia: (perfilRP || PERFILES[modo] || PERFILES.CR).prior.map(function (x) { return Bayes.prior(x[0], x[1]); }),
+      n: [0, 0, 0, 0], aciertosCat: [0, 0, 0, 0], errCat: [0, 0, 0, 0], recCat: [[], [], [], []],
+      iniciada: (PERFILES[modo] || PERFILES.CR).todas ? [true, true, true, true] : [true, false, false, false],
+      desbloq: (PERFILES[modo] || PERFILES.CR).todas ? [true, true, true, true] : [true, false, false, false],
+      ultimoNivel: [null, null, null, null], ultimoGlobal: null, ultimaCat: -1,
+      puntos: 0, aciertos: 0, errores: 0, blancos: 0, racha: 0, mejorRacha: 0, respondidas: 0,
+      msRest: CFG.DURACION_CR * 1000, tJuego: 0, sumT: 0, qT: 0,
+      cola: [], recientes: [], q: null, hist: [], luces: 0, regalos: 0, flash: false,
+      esperando: false, lectura: false, terminada: false, finPendiente: false, maxNivelAcertado: 0, codigo: null, ultimoRes: null
+    };
+    return J;
+  }
+  function catActiva(c) { return !!(J && J.desbloq[c]); }
+  function condDesbloqueo(c) {                      // ¿está la categoría c suficientemente dominada para abrir la siguiente?
+    if (J.n[c] < 4) return false;
+    var r = J.recCat[c], ac = r.length ? r.filter(Boolean).length / r.length : 0;
+    return Bayes.media(J.creencia[c]) >= 3.0 || (r.length >= 5 && ac >= 0.7) || J.respondidas >= 10 + 4 * c;
+  }
+  function actualizarDesbloqueo() {
+    for (var c = 1; c < 4; c++) if (!J.desbloq[c] && J.desbloq[c - 1] && condDesbloqueo(c - 1)) J.desbloq[c] = true;
+  }
+  function nivelCat(c) { return clamp(Bayes.media(J.creencia[c]), 1, 10); }
+  function nivelGlobal() {
+    var sw = 0, s = 0;
+    for (var c = 0; c < 4; c++) if (catActiva(c) && (J.n[c] > 0 || c === 0)) { var w = J.n[c] + 1; s += w * nivelCat(c); sw += w; }
+    return sw ? s / sw : 1;
+  }
+  // nivel objetivo: el que da ~68 % de probabilidad predictiva de acierto
+  function limitarSalto(d) {                  // salto máximo de +-1 nivel respecto a la pregunta anterior (cualquier categoría)
+    if (J.ultimoGlobal === null) return clamp(Math.min(d, J.perfil.primer), 1, 10);   // 1.ª pregunta: nivel 1 en Contrarreloj (sin paréntesis), nivel 4 en El rey
+    return clamp(clamp(d, J.ultimoGlobal - 1, J.ultimoGlobal + 1), 1, 10);
+  }
+  function objetivoBase(c) {
+    var best = 1, bd = 9, ds = [];
+    for (var d = 1; d <= 10; d++) { var dd = Math.abs(Bayes.predictivo(J.creencia[c], d) - J.perfil.objetivo); ds[d] = dd; if (dd < bd - 1e-12) { bd = dd; best = d; } }
+    var u = J.ultimoNivel[c];
+    if (u !== null && ds[u] - bd < 0.04) best = u;       // histéresis: si el último nivel ya es casi igual de bueno, no se mueve (menos ruido)
+    return limitarSalto(best);
+  }
+  function nivelObjetivo(c) {
+    var b = objetivoBase(c);
+    if (RNG.chance(0.08)) { var h = J.hist; b += (h.length && h[h.length - 1].tipo === 'acierto') ? 1 : -1; }   // exploración asimétrica
+    return limitarSalto(b);
+  }
+  function elegirSiguiente() {
+    var i, cat, nivel;
+    J.cola.forEach(function (it) { it.r--; });
+    var k = -1; for (i = 0; i < J.cola.length; i++) if (J.cola[i].r <= 0) { k = i; break; }
+    if (k >= 0) {                                         // reencolar un fallo con otra forma
+      var it = J.cola.splice(k, 1)[0]; cat = it.cat;
+      nivel = limitarSalto(it.nivel);
+    } else {
+      var act = [], pesos = [];
+      for (var c = 0; c < 4; c++) if (catActiva(c)) {
+        var w = 0.6 + Bayes.desv(J.creencia[c]) / 3 + (10 - nivelCat(c)) / 10;
+        if (c === J.ultimaCat) w *= 0.35;
+        if (J.n[c] < 2) w *= 2;
+        if (J.ultimoGlobal !== null && J.iniciada[c] && Math.abs(objetivoBase(c) - J.ultimoGlobal) > 1) w *= 0.4;
+        act.push(c); pesos.push(w);
+      }
+      var tot = pesos.reduce(function (a, b) { return a + b; }, 0), r = RNG.next() * tot, acc = 0; cat = act[act.length - 1];
+      for (i = 0; i < act.length; i++) { acc += pesos[i]; if (r < acc) { cat = act[i]; break; } }
+      if (J.n[cat] === 0 && cat > 0 && !J.iniciada[cat]) {   // categoría recién desbloqueada: prior centrado en el nivel actual del alumno
+        J.iniciada[cat] = true; J.creencia[cat] = Bayes.prior(Math.max(1.5, nivelGlobal() - 0.5), 2.0);
+      }
+      nivel = nivelObjetivo(cat);
+    }
+    return { cat: cat, nivel: nivel };
+  }
+  // Repaso: un solo tema. En refuerzo se pregunta en el nivel de refuerzo; si no, en el nivel con ≈ 72 % de acierto previsto
+  function elegirSiguienteRP() {
+    var i, k = -1;
+    J.cola.forEach(function (it) { it.r--; });
+    for (i = 0; i < J.cola.length; i++) if (J.cola[i].r <= 0) { k = i; break; }
+    var nivel;
+    if (k >= 0) {                                                              // se repite el tipo de pregunta fallada, con otros números
+      nivel = J.cola.splice(k, 1)[0].nivel;
+      if (J.refuerzo) nivel = Math.min(nivel, J.refNivel + 1);                 // en refuerzo no vuelve en el nivel que falló
+      nivel = limitarSalto(nivel);
+    }
+    else if (J.refuerzo) nivel = limitarSalto(J.refNivel);
+    else nivel = nivelObjetivo(0);
+    return { cat: 0, nivel: nivel };
+  }
+  function siguientePregunta() {
+    var s = J.modo === 'RP' ? elegirSiguienteRP() : elegirSiguiente();
+    var q = J.modo === 'RP' ? Generador.generarTema(J.tema, s.nivel, { evitar: J.recientes }) : Generador.generar(s.cat + 1, s.nivel, { evitar: J.recientes });
+    J.q = q; J.qT = 0;
+    J.recientes.push(q.p); if (J.recientes.length > 6) J.recientes.shift();
+    J.esperando = false; J.lectura = false;
+    if (UI.listo) UI.pintarPregunta();
+  }
+  function parseValor(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return isFinite(v) && Math.floor(v) === v ? v : null;
+    var s = String(v).replace(/\s+/g, '').replace(/[−‒–]/g, '-').replace(/^\+/, '');
+    if (!/^-?\d+$/.test(s)) return null;
+    var n = parseInt(s, 10); return n === 0 ? 0 : n;
+  }
+  function procesar(valor, segOv) {
+    var q = J.q, c = J.modo === 'RP' ? 0 : q.cat - 1, d = q.nivel;
+    var t = (segOv !== undefined && segOv !== null) ? Number(segOv) : J.qT / 1000;
+    t = isFinite(t) ? clamp(t, 0, 600) : 600;                        // cotas sobre el tiempo de respuesta
+    var num = parseValor(valor);
+    var tipo = num === null ? 'blanco' : (num === q.valor ? 'acierto' : 'error');
+    var tObj = Puntuacion.tObjetivo(d);
+    var res = { tipo: tipo, correcto: tipo === 'acierto', valor: num, correcta: q.valor, cat: q.cat, nivel: d, tiempo: t, puntos: 0, delta: 0, bonus: 0, mult: 1, expl: q.expl, explHTML: q.explHTML, texto: q.p, html: q.html, tiempoPerdido: 0 };
+    var antes = J.puntos;
+    if (tipo === 'acierto') {
+      J.racha++; if (J.racha > J.mejorRacha) J.mejorRacha = J.racha;
+      res.mult = Puntuacion.multiplicador(J.racha); res.bonus = Puntuacion.bonus(d, t); res.fraccion = Puntuacion.fraccion(d, t);
+      res.puntos = Puntuacion.acierto(d, t, J.racha);
+      J.puntos += res.puntos; J.aciertos++; J.aciertosCat[c]++;
+      if (d > J.maxNivelAcertado) J.maxNivelAcertado = d;
+      J.luces++; if (J.luces >= CFG.LUCES) { J.luces = 0; J.regalos++; J.flash = true; }
+    } else {
+      J.racha = 0;
+      if (tipo === 'error') {
+        J.errores++; J.errCat[c]++;
+        J.puntos = Math.max(0, J.puntos - Puntuacion.penalizacion(d));
+        if (J.modo === 'CR') res.tiempoPerdido = CFG.PENAL_CR;
+        if (J.luces > 0) { J.luces--; res.bolaRota = true; }
+      } else {
+        J.blancos++;
+        if (J.modo === 'CR') res.tiempoPerdido = CFG.PENAL_NOSE_CR;
+      }
+      if (res.tiempoPerdido) { J.msRest -= res.tiempoPerdido * 1000; if (J.msRest <= 0) { J.msRest = 0; J.finPendiente = true; } }
+      J.cola.push({ cat: c, nivel: d, r: CFG.COLA_RETRASO });
+      J.lectura = true;                                              // se lee la explicación: el reloj se detiene hasta «Continuar»
+    }
+    res.delta = J.puntos - antes;
+    // actualización bayesiana
+    var ratio = t / tObj, w = Bayes.peso(tipo, t, ratio, tObj);
+    J.creencia[c] = Bayes.actualizar(J.creencia[c], d, tipo === 'acierto', w);
+    // la capacidad general se comparte un poco: la evidencia también mueve (con menos peso) las demás categorías ya iniciadas
+    for (var c2 = 0; c2 < 4; c2++) if (c2 !== c && J.iniciada[c2] && CFG.FUGA_CAT > 0) J.creencia[c2] = Bayes.actualizar(J.creencia[c2], d, tipo === 'acierto', w * CFG.FUGA_CAT);
+    J.n[c]++; J.ultimoNivel[c] = d; J.ultimoGlobal = d; J.ultimaCat = c;
+    J.recCat[c].push(tipo === 'acierto'); if (J.recCat[c].length > 8) J.recCat[c].shift();
+    J.respondidas++; J.sumT += t;
+    J.hist.push({ cat: q.cat, nivel: d, tipo: tipo, t: t, texto: q.p, valor: q.valor, resp: num });
+    if (J.modo === 'RP') {
+      // refuerzo: 4 de las últimas 6 falladas (con al menos 5 respondidas) => baja, repasa la regla y repite hasta acertar 3 seguidas
+      J.ventana.push(tipo === 'acierto' ? 1 : 0); if (J.ventana.length > 6) J.ventana.shift();
+      if (tipo !== 'acierto' && q.regla) J.fallos[q.regla] = (J.fallos[q.regla] || 0) + 1;
+      if (!J.refuerzo) {
+        var malas = J.ventana.filter(function (x) { return !x; }).length;
+        if (J.ventana.length >= 5 && malas >= 4) {
+          J.refuerzo = true; J.refAciertos = 0; J.nRefuerzos++;
+          J.refNivel = Math.max(1, Math.min(d, Math.round(nivelCat(0))) - 2);
+          J.ultimoGlobal = J.refNivel + 1; J.ultimoNivel[0] = J.refNivel + 1;
+          res.refuerzo = 'entra'; res.refNivel = J.refNivel;
+        }
+      } else if (tipo === 'acierto') {
+        J.refAciertos++;
+        if (J.refAciertos >= 3) { J.refuerzo = false; J.ventana = []; res.refuerzo = 'sale'; }
+      } else {
+        J.refAciertos = 0;
+        if (J.ventana.slice(-3).every(function (x) { return !x; })) J.refNivel = Math.max(1, J.refNivel - 1);   // sigue fallando: aún más fácil
+      }
+    }
+    actualizarDesbloqueo();
+    J.esperando = true; J.ultimoRes = res;
+    if (J.modo === 'RM' && J.respondidas >= CFG.PREGUNTAS_RM) J.finPendiente = true;
+    return res;
+  }
+  function responder(valor, segOv) {
+    if (!J || J.terminada || !J.q) return null;
+    if (J.esperando) avanzar();
+    if (!J || J.terminada) return null;
+    // simulación (solo API de pruebas): el tiempo de respuesta consume reloj de Contrarreloj
+    if (segOv !== undefined && segOv !== null && J.modo === 'CR') {
+      var ms = clamp(Number(segOv) * 1000 || 0, 0, 600000);
+      if (ms >= J.msRest) { J.msRest = 0; finalizar(); return null; }       // el tiempo se acabó antes de contestar
+      J.msRest -= ms; J.tJuego += ms;
+    }
+    var res = procesar(valor, segOv);
+    if (UI.listo) UI.feedback(res);
+    if (typeof setTimeout !== 'undefined') {
+      if (res.tipo === 'acierto') timerAvance = setTimeout(avanzar, CFG.PAUSA_OK);
+      else if (CFG.PAUSA_ERR > 0) timerAvance = setTimeout(avanzar, CFG.PAUSA_ERR);
+    }
+    return res;
+  }
+  function avanzar() {
+    if (timerAvance) { clearTimeout(timerAvance); timerAvance = null; }
+    if (!J || J.terminada || !J.esperando) return;
+    J.esperando = false; J.lectura = false;
+    if (UI.listo) UI.ocultarFeedback();
+    if (J.finPendiente) { finalizar(); return; }
+    siguientePregunta();
+  }
+  function limpiarTimers() { if (timerAvance) { clearTimeout(timerAvance); timerAvance = null; } }
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function fechaHora(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); }
+
+  /* ---- código de resultado: L17-CR-23-2-480-261123-1542-K7M ----
+   *  lista, modo, aciertos, errores, puntos, fecha AAMMDD, hora HHMM y 3 caracteres de control.
+   *  El control detecta erratas y códigos inventados al azar; no es una firma criptográfica. */
+  function chkCodigo(base) { return b32(hash32('mn-codigo|' + base), 3); }
+  function armarCodigo(p, d) {
+    var base = 'L' + p.lista + '-' + (p.modo === 'RP' ? 'RP' + p.tema : p.modo) + '-' + p.aciertos + '-' + p.errores + '-' + (p.modo === 'RP' ? Math.round(p.nivel * 10) : p.puntos) + '-' +
+      p2(d.getFullYear() % 100) + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes());
+    return base + '-' + chkCodigo(base);
+  }
+  function decodificarUno(txt) {
+    var s = String(txt).replace(/\s+/g, '').toUpperCase();
+    var m = /^L(\d{1,2})-(CR|RM|RP[1-5])-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
+    if (!m) return { ok: false, codigo: String(txt).trim(), error: 'formato no válido' };
+    var base = s.slice(0, s.lastIndexOf('-'));
+    var o = { ok: true, codigo: s, lista: parseInt(m[1], 10), modo: m[2], aciertos: parseInt(m[3], 10), errores: parseInt(m[4], 10), puntos: parseInt(m[5], 10),
+      fecha: '20' + m[6].slice(0, 2) + '-' + m[6].slice(2, 4) + '-' + m[6].slice(4, 6), hora: m[7].slice(0, 2) + ':' + m[7].slice(2, 4), control: m[8] };
+    if (o.modo.charAt(0) === 'R' && o.modo.charAt(1) === 'P') { o.tema = parseInt(o.modo.charAt(2), 10); o.nivel = o.puntos / 10; o.puntos = 0; }
+    o.valorRank = o.modo === 'CR' ? o.aciertos - CFG.ERR_PESO_RANK * o.errores : o.puntos;
+    if (chkCodigo(base) !== m[8]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
+    else if (o.lista < 1 || o.lista > LISTA_MAX) { o.ok = false; o.error = 'número de lista fuera de rango'; }
+    return o;
+  }
+  function decodificarVarios(texto) {
+    var lineas = String(texto).split(/[\r\n]+/), vistos = {}, out = [];
+    lineas.forEach(function (l) {
+      if (!l.replace(/\s+/g, '')) return;
+      var o = decodificarUno(l);
+      if (o.ok) { if (vistos[o.codigo]) { o.dup = true; } vistos[o.codigo] = true; }
+      out.push(o);
+    });
+    return out;
+  }
+  function filaTSV(arr, sep) {
+    return arr.map(function (v) { v = (v === null || v === undefined) ? '' : String(v); return sep === ';' ? (/[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v) : v.replace(/[\t\r\n]+/g, ' '); }).join(sep);
+  }
+  function tablaDecodificada(res, sep) {
+    var cab = ['lista', 'tema', 'aciertos', 'errores', 'nivel', 'fecha', 'hora', 'estado', 'codigo'];
+    var f = res.map(function (o) {
+      return o.ok ? [o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
+        : ['', '', '', '', '', '', '', 'ERROR: ' + o.error, o.codigo];
+    });
+    return [filaTSV(cab, sep)].concat(f.map(function (r) { return filaTSV(r, sep); })).join(sep === ';' ? '\r\n' : '\n');
+  }
+
+  /* ---- exportar / importar TODAS las partidas de este dispositivo (texto con control) ---- */
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  function b64enc(s) {
+    var o = '', i = 0;
+    while (i < s.length) {
+      var a = s.charCodeAt(i++) & 255, b = i < s.length ? s.charCodeAt(i++) & 255 : -1, c = i < s.length ? s.charCodeAt(i++) & 255 : -1;
+      o += B64.charAt(a >> 2) + B64.charAt(((a & 3) << 4) | (b < 0 ? 0 : b >> 4));
+      if (b >= 0) o += B64.charAt(((b & 15) << 2) | (c < 0 ? 0 : c >> 6));
+      if (c >= 0) o += B64.charAt(c & 63);
+    }
+    return o;
+  }
+  function b64dec(s) {
+    var o = '', buf = 0, bits = 0;
+    for (var i = 0; i < s.length; i++) {
+      var v = B64.indexOf(s.charAt(i)); if (v < 0) throw new Error('base64');
+      buf = (buf << 6) | v; bits += 6;
+      if (bits >= 8) { bits -= 8; o += String.fromCharCode((buf >> bits) & 255); buf &= (1 << bits) - 1; }
+    }
+    return o;
+  }
+  function exportarTodo() {
+    var filas = Almacen.partidas().map(function (p) {
+      var n = p.niveles || {}, f = function (x) { return x === null || x === undefined ? -1 : x; };
+      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]);   // repaso: tema, nivel inicial, refuerzos
+    });
+    var carga = b64enc(JSON.stringify(filas));
+    return 'MN1:' + carga + ':' + b32(hash32('mn-export|' + carga), 6);
+  }
+  function importarTodo(texto) {
+    var toks = String(texto).split(/\s+/).filter(function (t) { return t.indexOf('MN1:') === 0 || t.length > 0; });
+    var r = { anadidas: 0, duplicadas: 0, invalidas: 0 };
+    var claves = {}; Almacen.partidas().forEach(function (p) { claves[p.lista + '|' + p.modo + '|' + p.ts] = true; });
+    toks.forEach(function (t) {
+      var parts = t.split(':');
+      if (parts.length !== 3 || parts[0] !== 'MN1' || b32(hash32('mn-export|' + parts[1]), 6) !== parts[2]) { r.invalidas++; return; }
+      var filas; try { filas = JSON.parse(b64dec(parts[1])); } catch (e) { r.invalidas++; return; }
+      if (!Array.isArray(filas)) { r.invalidas++; return; }
+      filas.forEach(function (f) {
+        if (!Array.isArray(f) || f.length < 16 || !(f[0] >= 1 && f[0] <= LISTA_MAX) || f[1] !== 'RP' || !(f[12] >= 1 && f[12] <= 5)) { r.invalidas++; return; }
+        var k = f[0] + '|' + f[1] + '|' + f[2];
+        if (claves[k]) { r.duplicadas++; return; }
+        claves[k] = true;
+        var d = new Date(f[2]), tot = f[4] + f[5] + f[6], g = function (x) { return x < 0 ? null : x; };
+        var rec = { lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
+          tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[14], importada: true };
+        rec.codigo = armarCodigo(rec, d);
+        Almacen.mem.partidas.push(rec); r.anadidas++;
+      });
+    });
+    Almacen.guardar();
+    return r;
+  }
+
+  /* ---- clasificación: puntuación principal (CR: aciertos − 2·errores; RM: puntos) ---- */
+  function valida(p) { return p.aciertos > 0 && Puntuacion.rank(p) > 0; }       // 0 aciertos / 0 puntos no entran
+  function cmpRank(a, b) {
+    var ra = Puntuacion.rank(a), rb = Puntuacion.rank(b);
+    if (ra !== rb) return rb - ra;
+    if (a.modo === 'CR') { if (a.puntos !== b.puntos) return b.puntos - a.puntos; } else if (a.aciertos !== b.aciertos) return b.aciertos - a.aciertos;
+    if (a.errores !== b.errores) return a.errores - b.errores;
+    return (a.lista - b.lista);
+  }
+  // lista completa (una fila por alumno: su mejor partida) con puesto compartido en caso de empate
+  function rankingCompleto(modo) {
+    var mejor = {};
+    Almacen.partidas().filter(function (p) { return p.modo === modo && valida(p); }).forEach(function (p) {
+      var a = mejor[p.lista];
+      if (!a || cmpRank(p, a) < 0) mejor[p.lista] = p;
+    });
+    var arr = Object.keys(mejor).map(function (k) { return mejor[k]; }).sort(cmpRank);
+    return arr.map(function (p) {
+      var v = Puntuacion.rank(p), mejores = 0, iguales = 0;
+      arr.forEach(function (o) { var w = Puntuacion.rank(o); if (w > v) mejores++; else if (w === v && o !== p) iguales++; });
+      var c = {}; for (var k in p) c[k] = p[k];
+      c.valorRank = v; c.puesto = 1 + mejores; c.empate = iguales > 0;
+      return c;
+    });
+  }
+  function ranking(modo) { return rankingCompleto(modo).slice(0, 10); }
+  function puestoDe(modo, lista) {
+    var rk = rankingCompleto(modo);
+    for (var i = 0; i < rk.length; i++) if (rk[i].lista === lista) return { puesto: rk[i].puesto, empate: rk[i].empate, total: rk.length, valor: rk[i].valorRank };
+    return { puesto: null, empate: false, total: rk.length, valor: null };
+  }
+
+  function finalizar() {
+    if (!J || J.terminada) return;
+    J.terminada = true; J.esperando = false; J.lectura = false;
+    limpiarTimers();
+    var ahora = new Date();
+    if (J.modo === 'RP') { finalizarRP(ahora); return; }
+    var previas = Almacen.partidas().filter(function (x) { return x.modo === J.modo && valida(x); });
+    var mejorTodos = previas.length ? previas.reduce(function (m, x) { return Math.max(m, Puntuacion.rank(x)); }, -Infinity) : null;
+    var propias = previas.filter(function (x) { return x.lista === J.lista; });
+    var mejorPropia = propias.length ? propias.reduce(function (m, x) { return Math.max(m, Puntuacion.rank(x)); }, -Infinity) : null;
+    var tot = J.aciertos + J.errores + J.blancos;
+    var niveles = {}, ni = ['suma', 'mult', 'pot', 'comb'];
+    for (var c = 0; c < 4; c++) niveles[ni[c]] = J.n[c] ? Math.round(nivelCat(c) * 10) / 10 : null;
+    var rec = {
+      lista: J.lista, modo: J.modo, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      puntos: J.puntos, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
+      precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
+      tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
+      nivel: Math.round(nivelGlobal() * 10) / 10, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, niveles: niveles
+    };
+    rec.codigo = armarCodigo(rec, ahora);
+    J.codigo = rec.codigo;
+    var valor = Puntuacion.rank(rec), esValida = valida(rec);
+    Almacen.anadir(rec);
+    var pp = puestoDe(J.modo, J.lista);
+    // corona: solo si supera a la mejor de TODA la clasificación (que incluye la mejor propia)
+    var corona = esValida && mejorTodos !== null && valor > mejorTodos && (mejorPropia === null || valor > mejorPropia);
+    var record = esValida && mejorPropia !== null && valor > mejorPropia;
+    ultimoResultado = {
+      rec: rec, valor: valor, valida: esValida, posicion: pp.puesto, empate: pp.empate, participantes: pp.total,
+      esMejorPropia: esValida && (mejorPropia === null || valor >= mejorPropia),
+      record: record, corona: corona, mejorTodos: mejorTodos, mejorPropia: mejorPropia,
+      niveles: J.creencia.map(function (_, c) { return { nombre: NOMBRES_CAT[c], nivel: J.n[c] ? nivelCat(c) : null }; })
+    };
+    if (UI.listo) UI.mostrarResultados();
+  }
+  // Repaso: fin de sesión. Guarda la partida y el progreso del alumno en el tema
+  function finalizarRP(ahora) {
+    var tot = J.aciertos + J.errores + J.blancos, th = nivelCat(0);
+    var rec = {
+      lista: J.lista, modo: 'RP', tema: J.tema, fecha: fechaHora(ahora), ts: ahora.getTime(),
+      puntos: 0, aciertos: J.aciertos, errores: J.errores, blancos: J.blancos,
+      precision: tot ? Math.round(100 * J.aciertos / tot) : 0,
+      tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
+      nivel: Math.round(th * 10) / 10, nivelIni: Math.round(J.nivelIni * 10) / 10, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, refuerzos: J.nRefuerzos
+    };
+    rec.codigo = armarCodigo(rec, ahora);
+    J.codigo = rec.codigo;
+    if (J.respondidas > 0) {                                   // una sesión vacía no cambia el progreso
+      Almacen.anadir(rec);
+      Almacen.setProg(J.lista, J.tema, { theta: th, n: ((Almacen.prog(J.lista, J.tema) || {}).n || 0) + J.respondidas, ts: ahora.getTime() });
+    }
+    var vistas = {}, reglas = Object.keys(J.fallos).sort(function (a, b) { return J.fallos[b] - J.fallos[a]; }).filter(function (r) {
+      var k = r.replace(/\d+/g, 'n'); if (vistas[k]) return false; vistas[k] = true; return true;       // sin repetir la misma regla con otros números
+    }).slice(0, 4);
+    ultimoResultado = { rec: rec, rp: true, vacia: J.respondidas === 0, reglas: reglas, nivel: th };
+    if (UI.listo) UI.mostrarResultados();
+  }
+  function iniciar(modo, lista, tema) {
+    var m = normModo(modo), l = parseInt(lista, 10), t = parseInt(tema, 10);
+    if (!m || !(l >= 1 && l <= LISTA_MAX)) return false;
+    if (m === 'RP' && !(t >= 1 && t <= 5)) return false;       // en el repaso es obligatorio elegir tema
+    limpiarTimers();
+    alumnoActual = l;
+    nuevaPartida(m, l, t);
+    ultimoResultado = null;
+    tickAnt = ahoraMs();
+    if (UI.listo) UI.empezarPartida();
+    siguientePregunta();
+    return true;
+  }
+  // salir de una partida en curso: NO se guarda
+  function abandonar() {
+    limpiarTimers();
+    if (J && !J.terminada) { J.terminada = true; J.abandonada = true; J.esperando = false; J.lectura = false; }
+    ultimoResultado = null;
+    if (UI.listo) UI.irMenu();
+  }
+  // reloj: se llama cada 100 ms. Usa el reloj monótono; dt con cota inferior 0 (relojes que retroceden) y superior 60 s
+  var tickAnt = ahoraMs();
+  function tick() {
+    var ahora = ahoraMs(), dt = clamp(ahora - tickAnt, 0, 60000); tickAnt = ahora;
+    if (!J || J.terminada) return;
+    if (!J.lectura) {                                    // solo se detiene mientras se lee la explicación de un error
+      if (!J.esperando) J.qT += dt;
+      J.tJuego += dt;
+      if (J.modo === 'CR') { J.msRest -= dt; if (J.msRest <= 0) { J.msRest = 0; finalizar(); return; } }
+    }
+    if (UI.listo) UI.pintarReloj();
+  }
+
+  /* ---- PIN del profesorado: huella + bloqueo progresivo (3 fallos = 30 s; luego se duplica) ---- */
+  function pinEstado() {
+    var p = Almacen.mem.pin || { f: 0, hasta: 0 }, resto = Math.max(0, p.hasta - Date.now());
+    return { fallos: p.f || 0, resto: Math.min(resto, 24 * 3600 * 1000) };
+  }
+  function pinProbar(pin) {
+    var st = pinEstado();
+    if (st.resto > 0) return { ok: false, bloqueo: Math.ceil(st.resto / 1000) };
+    if (hashPin(pin) === PIN_HASH) { Almacen.mem.pin = { f: 0, hasta: 0 }; Almacen.guardar(); return { ok: true }; }
+    var f = st.fallos + 1, seg = 0, hasta = 0;
+    if (f >= 3) { seg = Math.min(30 * Math.pow(2, f - 3), 24 * 3600); hasta = Date.now() + seg * 1000; }
+    Almacen.mem.pin = { f: f, hasta: hasta }; Almacen.guardar();
+    return { ok: false, fallos: f, bloqueo: seg, restantes: Math.max(0, 3 - f) };
+  }
+
+  /* ---- CSV / TSV ---- */
+  function nombreModo(m) { return m === 'CR' ? 'Contrarreloj' : (m === 'RM' ? 'Rey de las mates' : 'Repaso'); }
+  function nombreTema(t) { return TEMAS_NOMBRE[t] || ''; }
+  function fn(x) { return x === null || x === undefined ? '' : String(x).replace('.', ','); }
+  function tablaPartidas(sep) {
+    var cab = ['lista', 'tema', 'fecha_hora', 'preguntas', 'aciertos', 'errores', 'en_blanco', 'precision_pct', 'nivel_inicial', 'nivel_final', 'nivel_max_acertado', 'racha_max', 'refuerzos', 'tiempo_s', 'tiempo_medio_s', 'codigo'];
+    var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
+    var filas = ps.map(function (p) {
+      return filaTSV([p.lista, nombreTema(p.tema) || nombreModo(p.modo), p.fecha, p.aciertos + p.errores + (p.blancos || 0), p.aciertos, p.errores, p.blancos || 0, p.precision, fn(p.nivelIni), fn(p.nivel), p.maxNivel, p.mejorRacha, p.refuerzos || 0, p.tiempo, fn(p.tiempoMedio), p.codigo], sep);
+    });
+    return [filaTSV(cab, sep)].concat(filas).join(sep === ';' ? '\r\n' : '\n');
+  }
+  function csvTexto() { return tablaPartidas(';'); }
+  // una fila por alumno y tema: sesiones, preguntas, precisión media, nivel actual y última sesión
+  function resumenTSV() {
+    var ps = Almacen.partidas().filter(function (p) { return p.modo === 'RP'; }), por = {};
+    ps.forEach(function (p) { var k = p.lista + '|' + p.tema; (por[k] = por[k] || []).push(p); });
+    var cab = ['lista', 'tema', 'sesiones', 'preguntas', 'precision_media_pct', 'nivel_actual', 'ultima_sesion'];
+    var f = Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return (x[0] - y[0]) || (x[1] - y[1]); }).map(function (k) {
+      var l = por[k].sort(function (a, b) { return a.ts - b.ts; }), pre = l.reduce(function (s, p) { return s + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s, p) { return s + p.aciertos; }, 0);
+      return filaTSV([l[0].lista, nombreTema(l[0].tema), l.length, pre, pre ? Math.round(100 * ac / pre) : 0, fn(l[l.length - 1].nivel), l[l.length - 1].fecha], '\t');
+    });
+    return [filaTSV(cab, '\t')].concat(f).join('\n');
+  }
+
+  /* ===================================================================
+   *  API DE PRUEBA  window.__JUEGO__  (SOLO con ?test=1)
+   * =================================================================== */
+  var API = {
+    version: 'repaso-1.0',
+    config: CFG, rapido: RAPIDO,
+    semilla: function (n) { RNG.sembrar(n); },
+    generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
+    generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
+    evaluar: function (expr) { return Evaluador.evaluar(expr); },
+    evaluarDetallado: function (expr) { return Evaluador.detallado(expr); },
+    parsear: Evaluador.parsear, valorArbol: Evaluador.valor, redibujar: function (t) { return Explicar.render(Evaluador.parsear(t), 'first'); }, _COMB: Generador._COMB,
+    longitudVisual: Generador.longitudVisual,
+    iniciar: iniciar,
+    responder: responder,
+    continuar: avanzar,
+    terminar: function () { finalizar(); },
+    abandonar: abandonar,
+    estado: function () {
+      var o = {
+        pantalla: UI.pant, alumno: alumnoActual, partida: !!J, terminada: J ? J.terminada : null, modo: J ? J.modo : null, lista: J ? J.lista : null,
+        puntos: J ? J.puntos : 0, aciertos: J ? J.aciertos : 0, errores: J ? J.errores : 0, blancos: J ? J.blancos : 0,
+        racha: J ? J.racha : 0, mejorRacha: J ? J.mejorRacha : 0, respondidas: J ? J.respondidas : 0,
+        tiempoRestante: J ? Math.round(J.msRest / 10) / 100 : null, esperando: J ? J.esperando : false, lectura: J ? J.lectura : false,
+        nivelGlobal: J ? Math.round(nivelGlobal() * 100) / 100 : null,
+        theta: J ? J.creencia.map(function (p, c) { return J.iniciada[c] ? Math.round(Bayes.media(p) * 100) / 100 : null; }) : null,
+        n: J ? J.n.slice() : null, activas: J ? [0, 1, 2, 3].map(catActiva) : null,
+        luces: J ? J.luces : 0, regalos: J ? J.regalos : 0, cola: J ? J.cola.length : 0, codigo: J ? J.codigo : null,
+        pregunta: (J && J.q) ? { texto: J.q.p, html: J.q.html, cat: J.q.cat, nivel: J.q.nivel, respuesta: J.q.valor, expl: J.q.expl } : null,
+        historial: J ? J.hist.slice() : [], ultimoResultado: J ? J.ultimoRes : null,
+        resultado: ultimoResultado
+      };
+      return o;
+    },
+    ranking: ranking, rankingCompleto: rankingCompleto,
+    partidas: function () { return Almacen.partidas(); },
+    csv: csvTexto, tsv: function () { return tablaPartidas('\t'); }, resumenTSV: resumenTSV,
+    borrarDatos: function () { Almacen.borrar(); },
+    creencia: function (c) { return J ? J.creencia[c - 1].slice() : null; },
+    decodificar: decodificarVarios, decodificarUno: decodificarUno, exportarTodo: exportarTodo, importarTodo: importarTodo,
+    hashPin: hashPin, pinProbar: pinProbar, pinEstado: pinEstado,
+    inyectar: function (rec) { Almacen.mem.partidas.push(rec); },
+    bayes: Bayes, puntuacion: Puntuacion, tPartida: function () { return J ? { msRest: J.msRest, tJuego: J.tJuego, qT: J.qT } : null; }
+  };
+  if (TEST) G.__JUEGO__ = API;
+
+  if (typeof document === 'undefined') return;   // modo Node: solo motor, sin interfaz
+
+  /* ===================================================================
+   *  INTERFAZ (UI)
+   * =================================================================== */
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  // frases de ánimo (módulo deco_mates.js; si no está, se usan estas)
+  var MENSAJES_OK = (typeof MENSAJES_ACIERTO !== 'undefined' && MENSAJES_ACIERTO.length) ? MENSAJES_ACIERTO : ['¡Muy bien!', '¡Exacto!', '¡Eso es!', '¡Cuenta clara!', '¡Correcto!'];
+  var MENSAJES_ERR = (typeof MENSAJES_ANIMO !== 'undefined' && MENSAJES_ANIMO.length) ? MENSAJES_ANIMO : ['Casi. Fíjate en los signos.', 'Un error ayuda a aprender.', '¡Ánimo, la próxima sale!'];
+  var MENSAJES_REF = (typeof MENSAJES_REFUERZO !== 'undefined' && MENSAJES_REFUERZO.length) ? MENSAJES_REFUERZO : ['Vamos a repasar esto con calma.'];
+  var TEMA_ICONO = (typeof TEMAS_ICONO !== 'undefined') ? TEMAS_ICONO : { 1: '+ −', 2: '( )', 3: '× ÷', 4: 'x²', 5: '[ ]' };
+  var TEMA_DESC = ['', 'Solo números y signos: −5+8−3', 'Con paréntesis: −5+(−3)−(+8)', 'Regla de los signos: (−6)·4, −12:3', 'Cuadrados, cubos y (−2)<sup>3</sup>; con y sin paréntesis', 'Orden de las operaciones: 3·(−4)+10'];
+  var PERSONAJES = ['⭐', '🎯', '💡', '✔'];
+  var azar = function (a) { return a[Math.floor(Math.random() * a.length)]; };   // aleatorio cosmético
+
+  UI.modalAbierto = false;
+  UI.buf = '';        // dígitos de lista / pin
+  UI.neg = false;     // signo de la respuesta
+  UI.dig = '';        // dígitos de la respuesta
+  UI.okTexto = '';    // respuesta acertada que se muestra mientras llega la pregunta siguiente
+  UI.bloqueoHasta = 0;
+  UI.pen = null;      // animación del descuento de tiempo
+  UI.tLuces = null; UI.tIntervalo = null; UI.estrellasN = -1;
+  // bloquea toques fantasma (el segundo toque de un doble toque) durante un instante
+  UI.bloquear = function () { UI.bloqueoHasta = ahoraMs() + CFG.BLOQUEO_TOQUE; };
+
+  function decoSVG() {
+    if (typeof decoMates === 'function') return decoMates('deco-mates');
+    return '<svg viewBox="0 0 200 260" role="img" aria-label="Decoración de matemáticas"><text x="100" y="140" text-anchor="middle" font-size="90" fill="currentColor">π</text></svg>';
+  }
+  var Teclado = {
+    crear: function (host, opc) {
+      var h = '', filas = [['7', '8', '9'], ['4', '5', '6'], ['1', '2', '3']];
+      filas.forEach(function (f) { f.forEach(function (k) { h += '<button type="button" class="tecla" data-k="' + k + '">' + k + '</button>'; }); });
+      h += opc.signo ? '<button type="button" class="tecla acc" data-k="neg" aria-label="Signo menos">−</button>' : '<button type="button" class="tecla vacia" tabindex="-1" aria-hidden="true"></button>';
+      h += '<button type="button" class="tecla" data-k="0">0</button>';
+      h += '<button type="button" class="tecla acc" data-k="del" aria-label="Borrar">⌫</button>';
+      h += opc.fila;
+      host.className = 'teclado'; host.innerHTML = h;
+      host.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('button[data-k]') : null;
+        if (!b || !host.contains(b)) return;
+        UI.pulsar(b.getAttribute('data-k'), true);
+      });
+    }
+  };
+
+  /* --- navegación entre pantallas --- */
+  UI.mostrar = function (id) {
+    var ps = document.querySelectorAll('.pantalla');
+    for (var i = 0; i < ps.length; i++) ps[i].classList.toggle('activa', ps[i].id === id);
+    UI.pant = id.replace('p-', '');
+    UI.ctx = UI.pant;
+    var chip = $('chip-alumno');
+    chip.hidden = alumnoActual === null || id === 'p-lista';
+    if (!chip.hidden) chip.textContent = 'Nº ' + alumnoActual;
+    var enJuego = id === 'p-juego';
+    document.body.classList.toggle('en-juego', enJuego);
+    $('btn-pausa').hidden = !enJuego; $('btn-salir').hidden = !enJuego;
+    var sc = document.querySelector('#' + id); if (sc && sc.scrollTop) sc.scrollTop = 0;
+    UI.bloquear();
+  };
+  UI.irLista = function () {
+    alumnoActual = null; UI.buf = ''; UI.pintarLista(''); UI.mostrar('p-lista');
+  };
+  UI.irMenu = function () {
+    $('saludo').textContent = '¡Hola, número ' + alumnoActual + '!';
+    var h = '';
+    for (var t = 1; t <= 5; t++) {
+      var pr = Almacen.prog(alumnoActual, t), niv = pr ? Math.floor(clamp(pr.theta, 1, 10)) : 0;
+      h += '<button class="modo" type="button" data-tema="' + t + '"><span class="ic" aria-hidden="true">' + esc(TEMA_ICONO[t] || '') + '</span><h3>' + TEMAS_NOMBRE[t] + '</h3><p>' + TEMA_DESC[t] + '</p>' +
+        '<span class="niv">' + (pr ? 'Tu nivel: ' + niv + ' de 10<i style="width:' + (niv * 8) + 'px"></i>' : 'Todavía no has repasado este tema') + '</span></button>';
+    }
+    $('temas').innerHTML = h;
+    UI.mostrar('p-menu');
+  };
+
+  /* --- entrada numérica (pantalla de lista y PIN) --- */
+  UI.pintarLista = function (msg) {
+    var v = $('visor-lista');
+    if (UI.buf) { v.textContent = UI.buf; v.classList.remove('vacio'); } else { v.textContent = 'Tu número'; v.classList.add('vacio'); }
+    $('msg-lista').textContent = msg || '';
+  };
+  UI.pulsarLista = function (k) {
+    if (/^\d$/.test(k)) { if (UI.buf === '0') UI.buf = ''; if (UI.buf.length < 2) UI.buf += k; UI.pintarLista(''); }
+    else if (k === 'del') { UI.buf = UI.buf.slice(0, -1); UI.pintarLista(''); }
+    else if (k === 'ok') {
+      var n = parseInt(UI.buf, 10);
+      if (!(n >= 1 && n <= LISTA_MAX)) {
+        UI.pintarLista('Escribe un número del 1 al ' + LISTA_MAX);
+        var v = $('visor-lista'); v.classList.remove('sacudir'); void v.offsetWidth; v.classList.add('sacudir'); return;
+      }
+      Modal.abrir('<h2>¿Eres el número ' + n + '?</h2><p>Comprueba que es el tuyo: tus resultados se guardan con este número.</p>',
+        [{ t: 'No, corregir', fn: function () { Modal.cerrar(); } }, { t: 'Sí, soy yo', cls: 'verde', id: 'conf-si', fn: function () { Modal.cerrar(); alumnoActual = n; UI.irMenu(); } }],
+        { defecto: 'conf-si', cancel: function () { Modal.cerrar(); } });
+    }
+  };
+
+  /* --- respuesta del juego --- */
+  UI.textoResp = function () { return (UI.neg ? M : '') + UI.dig; };
+  UI.pintarResp = function () {
+    var r = $('resp'), t = UI.textoResp();
+    if (t !== '') { r.textContent = '= ' + t; r.className = ''; }
+    else if (UI.okTexto) { r.textContent = '✔ ' + UI.okTexto; r.className = 'ok'; }
+    else { r.textContent = '= ?'; r.className = 'vacia'; }
+  };
+  UI.sacudirResp = function () { var r = $('resp'); r.classList.remove('sacudir'); void r.offsetWidth; r.classList.add('sacudir'); };
+  UI.pulsarJuego = function (k) {
+    if (!J || J.terminada) return;
+    if (J.esperando) {
+      if (J.lectura) return;                         // se está leyendo la explicación de un error
+      // acierto reciente: las cifras se guardan para la pregunta siguiente (no se pierde ninguna)
+      if (k === 'nose') return;
+      if (k === 'ok') { if (UI.dig === '') return; avanzar(); if (J.esperando || J.terminada) return; }
+    }
+    if (/^\d$/.test(k)) { if (UI.dig === '0') UI.dig = ''; if (UI.dig.length < 5) UI.dig += k; }
+    else if (k === 'neg') UI.neg = true;           // la tecla − solo pone el signo menos (se quita con ⌫)
+    else if (k === 'neg-') UI.neg = true;
+    else if (k === 'pos') UI.neg = false;
+    else if (k === 'del') { if (UI.dig) UI.dig = UI.dig.slice(0, -1); else UI.neg = false; }
+    else if (k === 'ok') {
+      if (UI.dig === '') { UI.aviso('Escribe un número o pulsa «No sé»'); UI.sacudirResp(); return; }
+      var v = (UI.neg ? '-' : '') + UI.dig;
+      responder(v); return;
+    } else if (k === 'nose') { responder(null); return; }
+    UI.pintarResp();
+  };
+  UI.pulsar = function (k, toque) {
+    if (toque && ahoraMs() < UI.bloqueoHasta) return;          // toque fantasma
+    Sonido.despertar();
+    if (UI.ctx === 'lista') { UI.pulsarLista(k); Sonido.tecla(); }
+    else if (UI.ctx === 'juego') {
+      if (toque && (k === 'ok' || k === 'nose') && ahoraMs() < UI.okBloqueo) return;   // doble toque en Comprobar / No sé
+      UI.pulsarJuego(k); if (k !== 'ok' && k !== 'nose') Sonido.tecla();
+    }
+    else if (UI.ctx === 'pin') { Modal.pulsarPin(k); Sonido.tecla(); }
+  };
+  UI.okBloqueo = 0;
+
+  UI.aviso = function (txt, tipo) {
+    var t = $('toast'); t.textContent = txt; t.className = tipo === 'ok' ? '' : 'aviso'; void t.offsetWidth; t.classList.add('ver');
+  };
+
+  /* --- partida: pintar --- */
+  UI.empezarPartida = function () {
+    if (UI.tLuces) { clearTimeout(UI.tLuces); UI.tLuces = null; }
+    UI.neg = false; UI.dig = ''; UI.okTexto = ''; UI.pen = null; UI.pintarResp();
+    $('fb-error').hidden = true; $('toast').textContent = '';
+    $('deco').innerHTML = decoSVG();
+    $('h-modo-t').textContent = 'Tema';
+    $('barra-global').hidden = true;
+    $('h-modo-celda').classList.remove('urge', 'golpe');
+    UI.estrellasN = -1;
+    UI.mostrar('p-juego'); UI.pintarLuces(); UI.pintarHUD();
+  };
+  UI.pintarLuces = function () { /* sin luces en el repaso */ };
+  UI.pintarHUD = function () {
+    $('h-puntos').textContent = J.aciertos + ' / ' + J.respondidas;
+    $('h-racha').textContent = J.racha ? '🔥 ' + J.racha : '0';
+    var ng = nivelGlobal();
+    $('h-niv-t').textContent = Math.floor(ng) + ' de 10';
+    $('h-niv').style.width = (clamp((ng - 1) / 9, 0, 1) * 100) + '%';
+    UI.pintarReloj();
+  };
+  UI.animarPenal = function (seg) {
+    UI.pen = { ms: seg * 1000, t0: ahoraMs() };
+    var p = $('h-pen'), c = $('h-modo-celda');
+    p.textContent = '−' + seg + ' s'; p.classList.remove('ver'); c.classList.remove('golpe'); void p.offsetWidth; p.classList.add('ver'); c.classList.add('golpe');
+  };
+  function textoReloj(ms) { var s = Math.max(0, Math.ceil(ms / 1000)), mm = Math.floor(s / 60), ss = s % 60; return mm + ':' + (ss < 10 ? '0' : '') + ss; }
+  UI.pintarReloj = function () {
+    if (!J) return;
+    var ic = TEMA_ICONO[J.tema] || '';
+    if ($('h-modo').textContent !== ic) $('h-modo').textContent = ic;
+    var rp = $('reloj-pausa'); if (rp) rp.textContent = 'Llevas ' + J.respondidas + ' preguntas en este tema.';
+  };
+  UI.ajustarExpr = function () {
+    var e = $('expr'); e.style.fontSize = '';
+    var f = parseFloat(getComputedStyle(e).fontSize), guard = 40;
+    while (e.scrollWidth > e.clientWidth + 1 && f > 20 && guard-- > 0) { f -= 2; e.style.fontSize = f + 'px'; }
+  };
+  UI.pintarPregunta = function () {
+    var q = J.q;
+    $('q-cat').textContent = TEMAS_NOMBRE[J.tema] + (J.refuerzo ? ' · 🔁 Refuerzo' : '');
+    $('expr').innerHTML = q.html;
+    $('expr').setAttribute('aria-label', q.p.replace(/\^(\d+)/g, ' elevado a $1').replace(/:/g, ' dividido entre ').replace(/·/g, ' por ').replace(/−/g, ' menos '));
+    UI.okTexto = '';                                           // las cifras tecleadas durante la pausa del acierto se conservan
+    UI.pintarResp();
+    UI.estrellasN = -1;
+    UI.ajustarExpr(); UI.pintarHUD();
+  };
+  // resumen de reglas del tema (módulo lecciones.js)
+  UI.htmlLeccion = function (tema, breve) {
+    var L = (typeof LECCIONES !== 'undefined') ? LECCIONES[tema - 1] : null;
+    if (!L) return '';
+    var h = '<div class="leccion"><h4>📘 ' + esc(L.titulo) + '</h4><ul>';
+    L.reglas.forEach(function (r) { h += '<li>' + Generador.aHTML(esc(r)) + '</li>'; });
+    h += '</ul>';
+    if (!breve) L.ejemplos.forEach(function (e) {
+      h += '<div class="ejemplo"><b>' + Generador.aHTML(esc(e.expr)) + ' = ' + (e.resultado < 0 ? M + (-e.resultado) : e.resultado) + '</b><br>' + e.pasos.map(function (x) { return Generador.aHTML(esc(x)); }).join('<br>') + '</div>';
+    });
+    return h + '</div>';
+  };
+  UI.feedback = function (res) {
+    var texto = UI.textoResp(); UI.neg = false; UI.dig = '';
+    UI.okTexto = '';
+    UI.okBloqueo = ahoraMs() + 300;
+    UI.pintarHUD();
+    if (res.tipo === 'acierto') {
+      var extra = '';
+      if (J.racha === 3 || J.racha === 5 || J.racha === 10 || J.racha === 15) extra = ' ¡Racha de ' + J.racha + '!';
+      if (res.refuerzo === 'sale') extra = ' ¡Refuerzo superado! Volvemos a subir.';
+      UI.okTexto = (res.correcta < 0 ? M + (-res.correcta) : res.correcta);
+      UI.pintarResp();
+      UI.aviso(azar(MENSAJES_OK) + extra, 'ok');
+      Sonido.acierto();
+    } else {
+      UI.pintarResp();
+      var blanco = res.tipo === 'blanco';
+      $('fbe-t').textContent = blanco ? '¡No pasa nada!' : azar(['¡Casi!', 'Uy, casi', 'Vamos a repasarlo']);
+      $('fbe-cuenta').innerHTML = res.html + ' = ' + (res.correcta < 0 ? M + (-res.correcta) : res.correcta);
+      $('fbe-tu').textContent = blanco ? 'Has dejado la pregunta en blanco.' : 'Tú has escrito: ' + (res.valor < 0 ? M + (-res.valor) : res.valor) + '.';
+      var ex = res.explHTML + '<div class="animo">' + azar(MENSAJES_ERR) + '</div>';
+      if (res.refuerzo === 'entra') ex += '<div class="refuerzo">🔁 <b>' + azar(MENSAJES_REF) + '</b> Bajamos al nivel ' + res.refNivel + ' y repetimos hasta acertar 3 seguidas.</div>' + UI.htmlLeccion(J.tema, true);
+      $('fbe-expl').innerHTML = ex;
+      $('fbe-pen').textContent = 'Volverá a salir más adelante con otros números.';
+      $('fb-error').hidden = false;
+      if (CFG.PAUSA_ERR === 0) { try { $('fbe-ok').focus(); } catch (e) { /* nada */ } }
+      Sonido.error();
+    }
+  };
+  UI.ocultarFeedback = function () { $('fb-error').hidden = true; };
+
+  /* --- pausa y salida --- */
+  UI.pausar = function () {
+    if (!J || J.terminada || Modal.abierto) return;
+    // la pregunta queda oculta y NINGÚN reloj se detiene: la pausa no regala tiempo de reflexión
+    Modal.abrir('<h2>⏸ Pausa</h2><p>La pregunta está oculta. Respira y sigue cuando quieras.</p><div class="reloj-pausa" id="reloj-pausa" aria-live="off"></div>',
+      [{ t: 'Terminar', cls: 'rojo', fn: function () { Modal.cerrar(); UI.salir(); } }, { t: 'Seguir repasando', cls: 'verde', id: 'pausa-seguir', fn: function () { Modal.cerrar(); } }],
+      { defecto: 'pausa-seguir', opaco: true, cancel: function () { Modal.cerrar(); } });
+    UI.pintarReloj();
+  };
+  UI.salir = function () {
+    if (!J || J.terminada) { UI.irMenu(); return; }
+    Modal.abrir('<h2>¿Terminar el repaso?</h2><p>Verás tu resumen y se guardará tu progreso en este tema.</p>',
+      [{ t: 'Sí, terminar', cls: 'verde', id: 'salir-si', fn: function () { Modal.cerrar(); finalizar(); } }, { t: 'Seguir repasando', cls: 'rojo', id: 'salir-no', fn: function () { Modal.cerrar(); } }],
+      { defecto: 'salir-no', opaco: true, cancel: function () { Modal.cerrar(); } });
+  };
+
+  /* --- resultados --- */
+  function ordinal(n) { return n + '.º'; }
+  UI.textoPuesto = function (R) {
+    var esCR = R.rec.modo === 'CR', nm = esCR ? 'Contrarreloj' : 'El rey de las mates';
+    if (R.posicion) return 'Tu puesto en ' + nm + ': ' + ordinal(R.posicion) + ' de ' + R.participantes + (R.empate ? ' (empatado)' : '');
+    return R.participantes ? 'Todavía no tienes puesto en ' + nm + ' (hay ' + R.participantes + ' alumnos clasificados)' : 'Todavía no hay clasificación en ' + nm;
+  };
+  UI.mostrarResultadosRP = function (R) {
+    var r = R.rec, n = r.aciertos + r.errores + (r.blancos || 0);
+    var sube = r.nivel - r.nivelIni, med = r.precision >= 85 ? '🏆' : (r.precision >= 65 ? '⭐' : '💪');
+    var titulo = R.vacia ? 'Repaso sin preguntas' : (r.precision >= 85 ? '¡Gran repaso!' : (r.precision >= 65 ? '¡Buen repaso!' : '¡Seguimos practicando!'));
+    var h = '<div class="res-layout"><div class="res-izq"><div class="res-cab"><div class="medalla" aria-hidden="true">' + med + '</div><h1 class="titulo">' + titulo + '</h1>' +
+      '<p class="sub">Alumno nº ' + r.lista + ' · ' + TEMAS_NOMBRE[r.tema] + '</p></div>';
+    if (R.vacia) h += '<p class="sub">No has respondido ninguna pregunta, así que no se guarda nada.</p>';
+    else {
+      h += '<div class="res-grid"><div class="dato grande"><b>' + r.precision + ' %</b><span>de aciertos</span></div>' +
+        '<div class="dato"><b>' + n + '</b><span>Preguntas</span></div><div class="dato"><b>' + r.aciertos + '</b><span>Aciertos</span></div><div class="dato"><b>' + r.errores + '</b><span>Errores</span></div>' +
+        '<div class="dato"><b>' + Math.floor(r.nivel) + ' de 10</b><span>Tu nivel ahora' + (sube >= 0.5 ? ' (subes ↑)' : (sube <= -0.5 ? ' (bajas ↓)' : '')) + '</span></div>' +
+        '<div class="dato"><b>' + r.mejorRacha + '</b><span>Mejor racha</span></div><div class="dato"><b>' + r.refuerzos + '</b><span>Refuerzos</span></div><div class="dato"><b>' + fmt1(r.tiempoMedio) + ' s</b><span>Tiempo medio</span></div></div>' +
+        '<div class="res-niv"><div class="fn"><div><span>Nivel en este tema</span><b>' + fmt1(r.nivel) + '</b></div><div class="barranivel"><i style="width:' + (clamp((r.nivel - 1) / 9, 0, 1) * 100) + '%"></i></div></div></div>';
+    }
+    h += '</div><div class="res-der">';
+    if (!R.vacia) {
+      h += R.reglas.length ? '<div class="res-pos"><b>Para repasar:</b><ul>' + R.reglas.map(function (x) { return '<li>' + Generador.aHTML(esc(x)) + '</li>'; }).join('') + '</ul></div>' + UI.htmlLeccion(r.tema, false)
+        : '<div class="res-pos">¡Sin fallos que repasar en esta sesión! 🎯</div>';
+      h += '<div class="res-codigo">Código de resultado (apúntalo o haz una captura)<br><code id="codigo">' + r.codigo + '</code></div><div class="res-aviso" id="res-aviso" role="status"></div>';
+    }
+    h += '<div class="res-botones"><button class="btn verde grande" id="r-otra" type="button">🔁 Seguir con este tema</button><button class="btn" id="r-modo" type="button">📚 Cambiar de tema</button>' +
+      (R.vacia ? '' : '<button class="btn" id="r-enviar" type="button">✉️ Enviar a mi profesor</button>') + '<button class="btn suave" id="r-alumno" type="button">👤 Cambiar alumno</button></div></div></div>';
+    $('p-result').innerHTML = h;
+    UI.mostrar('p-result');
+    Sonido.fin();
+  };
+  UI.mostrarResultados = function () { UI.mostrarResultadosRP(ultimoResultado); };
+  UI.enviar = function () {
+    var R = ultimoResultado; if (!R) return;
+    var r = R.rec, asunto = 'Repaso de mates - lista ' + r.lista;
+    var texto = 'Repaso de mates · lista ' + r.lista + ' · ' + nombreTema(r.tema) + ' · aciertos ' + r.aciertos + ', errores ' + r.errores + ', nivel ' + fmt1(r.nivel) + ' · código: ' + r.codigo;
+    var av = $('res-aviso');
+    var correo = function () {
+      try { location.href = 'mailto:?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(texto); if (av) av.textContent = 'Se abre tu correo con el resultado. Si no se abre, apunta el código.'; }
+      catch (e) { if (av) av.textContent = 'No se pudo abrir el correo: apunta el código o haz una captura.'; }
+    };
+    try {
+      if (navigator.share) {
+        navigator.share({ title: asunto, text: texto }).then(function () { if (av) av.textContent = '¡Enviado!'; }, function (err) { if (err && err.name === 'AbortError') return; correo(); });
+      } else correo();
+    } catch (e) { correo(); }
+  };
+
+
+  /* --- modales propios (sin alert/confirm/prompt): role=dialog, aria-labelledby, foco atrapado --- */
+  var Modal = {
+    defecto: null, cancel: null, pinBuf: '', opener: null, prev: null, tPin: null,
+    setInert: function (v) {
+      var app = $('app');
+      if (v) { app.setAttribute('aria-hidden', 'true'); try { app.inert = true; app.setAttribute('inert', ''); } catch (e) { /* sin inert */ } }
+      else { app.removeAttribute('aria-hidden'); try { app.inert = false; app.removeAttribute('inert'); } catch (e) { /* sin inert */ } }
+    },
+    abrir: function (html, botones, opc) {
+      opc = opc || {};
+      var caja = $('modal-caja'); caja.className = opc.ancho ? 'ancho' : ''; $('modal').className = opc.opaco ? 'opaco' : '';
+      var cont = document.createElement('div'); cont.innerHTML = html; cont.style.cssText = 'display:flex;flex-direction:column;gap:10px;min-height:0;flex:1';
+      caja.innerHTML = ''; caja.appendChild(cont);
+      var h2 = cont.querySelector('h2'); if (h2) h2.id = 'modal-titulo';
+      if (botones && botones.length) {
+        var bar = document.createElement('div'); bar.className = 'modal-botones';
+        botones.forEach(function (b) {
+          var e = document.createElement('button'); e.type = 'button'; e.className = 'btn ' + (b.cls || ''); e.textContent = b.t; if (b.id) e.id = b.id;
+          e.addEventListener('click', function () { Sonido.despertar(); b.fn(); }); bar.appendChild(e);
+        });
+        caja.appendChild(bar);
+      }
+      if (!Modal.abierto) { Modal.opener = document.activeElement; Modal.prev = UI.ctx; Modal.setInert(true); }
+      Modal.abierto = true; UI.modalAbierto = true; UI.ctx = 'modal'; Modal.defecto = opc.defecto || null; Modal.cancel = opc.cancel || null;
+      $('modal').hidden = false; UI.bloquear();
+      var f = opc.sinFoco ? null : ((Modal.defecto && $(Modal.defecto)) || caja.querySelector('button.verde,button,textarea'));
+      try { if (f) f.focus(); else { caja.setAttribute('tabindex', '-1'); caja.focus(); } } catch (e) { /* nada */ }
+      return cont;
+    },
+    cerrar: function () {
+      if (Modal.tPin) { clearInterval(Modal.tPin); Modal.tPin = null; }
+      $('modal').hidden = true; $('modal').className = ''; Modal.abierto = false; UI.modalAbierto = false; Modal.defecto = null; Modal.cancel = null;
+      Modal.setInert(false);
+      UI.ctx = Modal.prev || UI.pant;
+      if (UI.pant === 'juego' && J && !J.terminada) UI.ctx = 'juego';
+      UI.bloquear();
+      var o = Modal.opener; Modal.opener = null;
+      try { if (o && o !== document.body && document.body.contains(o) && !o.hidden) o.focus(); } catch (e) { /* nada */ }
+    },
+    escape: function () { if (Modal.cancel) Modal.cancel(); },
+    atrapar: function (e) {                       // Tab no sale del diálogo
+      var fs = $('modal-caja').querySelectorAll('button:not([disabled]):not([tabindex="-1"]),textarea,input,[href],[tabindex="0"]'), vis = [];
+      for (var i = 0; i < fs.length; i++) if (fs[i].offsetWidth || fs[i].offsetHeight) vis.push(fs[i]);
+      if (!vis.length) { e.preventDefault(); return; }
+      var a = document.activeElement, first = vis[0], last = vis[vis.length - 1], dentro = $('modal-caja').contains(a);
+      if (e.shiftKey && (a === first || !dentro || a === $('modal-caja'))) { last.focus(); e.preventDefault(); }
+      else if (!e.shiftKey && (a === last || !dentro)) { first.focus(); e.preventDefault(); }
+    },
+    pintarPinMsg: function () {
+      var st = pinEstado(), m = $('pin-msg'); if (!m) return;
+      if (st.resto > 0) m.textContent = 'Demasiados intentos. Espera ' + Math.ceil(st.resto / 1000) + ' s.';
+      else if (Modal.tPin) { clearInterval(Modal.tPin); Modal.tPin = null; m.textContent = ''; }
+    },
+    pulsarPin: function (k) {
+      if (/^\d$/.test(k)) { if (Modal.pinBuf.length < 4) Modal.pinBuf += k; }
+      else if (k === 'del') Modal.pinBuf = Modal.pinBuf.slice(0, -1);
+      else if (k === 'ok') {
+        var r = pinProbar(Modal.pinBuf); Modal.pinBuf = '';
+        if (r.ok) { Modal.panel(); return; }
+        var m = $('pin-msg'), v = $('pin-visor');
+        if (r.bloqueo > 0) {
+          if (m) m.textContent = 'Demasiados intentos. Espera ' + r.bloqueo + ' s.';
+          if (!Modal.tPin) Modal.tPin = setInterval(Modal.pintarPinMsg, 1000);
+        } else if (m) m.textContent = 'PIN incorrecto' + (r.restantes ? ' (' + r.restantes + ' intento' + (r.restantes === 1 ? '' : 's') + ' antes del bloqueo)' : '');
+        if (v) { v.classList.remove('sacudir'); void v.offsetWidth; v.classList.add('sacudir'); }
+      }
+      var vv = $('pin-visor'); if (vv) { vv.textContent = Modal.pinBuf ? new Array(Modal.pinBuf.length + 1).join('●') : 'PIN'; vv.classList.toggle('vacio', !Modal.pinBuf); vv.setAttribute('aria-label', Modal.pinBuf ? Modal.pinBuf.length + ' cifras escritas' : 'PIN vacío'); }
+      if (k !== 'ok') { var mm = $('pin-msg'); if (mm && pinEstado().resto <= 0) mm.textContent = ''; }
+    },
+    pedirPin: function () {
+      Modal.pinBuf = '';
+      var c = Modal.abrir('<h2>🔒 Profesorado</h2><div class="visor vacio pin-puntos" id="pin-visor" role="status" aria-label="PIN vacío">PIN</div><div class="msg" id="pin-msg" role="status" style="color:#a61e2d"></div><div id="tec-pin"></div>',
+        [{ t: 'Cancelar', fn: function () { Modal.cerrar(); } }], { sinFoco: true, cancel: function () { Modal.cerrar(); } });
+      Teclado.crear(c.querySelector('#tec-pin'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
+      UI.ctx = 'pin';
+      if (pinEstado().resto > 0) { Modal.pintarPinMsg(); Modal.tPin = setInterval(Modal.pintarPinMsg, 1000); }
+    },
+    panel: function (tabIni) {
+      var tab = tabIni || 'resumen';
+      if (Modal.tPin) { clearInterval(Modal.tPin); Modal.tPin = null; }
+      var cont = Modal.abrir('<h2>🧮 Panel del profesorado</h2><div class="tabs" id="pp-tabs"></div><div id="pp-cuerpo" style="flex:1;min-height:0;overflow:auto"></div>',
+        [{ t: 'Cerrar panel', cls: 'verde', fn: function () { Modal.cerrar(); } }], { ancho: true, cancel: function () { Modal.cerrar(); } });
+      UI.ctx = 'modal';
+      var tabs = [['resumen', 'Resumen'], ['partidas', 'Partidas'], ['exportar', 'Exportar y datos'], ['decodificar', 'Decodificar'], ['modelo', 'Cómo funciona']];
+      var cuerpo = cont.querySelector('#pp-cuerpo'), tbar = cont.querySelector('#pp-tabs');
+      function pintar() {
+        tbar.innerHTML = tabs.map(function (t) { return '<button type="button" class="tab' + (t[0] === tab ? ' sel' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>'; }).join('');
+        var ps = Almacen.partidas().sort(function (a, b) { return (a.lista - b.lista) || (a.ts - b.ts); });
+        if (tab === 'resumen') {
+          var rp = ps.filter(function (p) { return p.modo === 'RP'; });
+          if (!rp.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones de repaso guardadas en este dispositivo.</p>'; return; }
+          var por = {}; rp.forEach(function (p) { var l = (por[p.lista] = por[p.lista] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
+          var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Nº lista</th>';
+          for (var tt = 1; tt <= 5; tt++) h += '<th>' + TEMAS_NOMBRE[tt] + '</th>';
+          h += '</tr></thead><tbody>';
+          Object.keys(por).sort(function (a, b) { return a - b; }).forEach(function (k) {
+            h += '<tr><td>' + k + '</td>';
+            for (var t2 = 1; t2 <= 5; t2++) {
+              var l = (por[k][t2] || []).sort(function (a, b) { return a.ts - b.ts; });
+              if (!l.length) { h += '<td>—</td>'; continue; }
+              var pre = l.reduce(function (s0, p) { return s0 + p.aciertos + p.errores + (p.blancos || 0); }, 0), ac = l.reduce(function (s0, p) { return s0 + p.aciertos; }, 0);
+              h += '<td>Nivel ' + fmt1(l[l.length - 1].nivel) + ' · ' + (pre ? Math.round(100 * ac / pre) : 0) + ' % (' + l.length + ')</td>';
+            }
+            h += '</tr>';
+          });
+          cuerpo.innerHTML = h + '</tbody></table>';
+        } else if (tab === 'partidas') {
+          if (!ps.length) { cuerpo.innerHTML = '<p>Todavía no hay sesiones guardadas.</p>'; return; }
+          var h2 = '<table class="tabla"><thead><tr><th>Nº</th><th>Tema</th><th>Fecha y hora</th><th>Preguntas</th><th>Aciertos</th><th>Errores</th><th>%</th><th>Nivel</th><th>Refuerzos</th><th>Código</th></tr></thead><tbody>';
+          ps.forEach(function (p) { h2 += '<tr><td>' + p.lista + '</td><td>' + (nombreTema(p.tema) || nombreModo(p.modo)) + '</td><td>' + p.fecha + '</td><td>' + (p.aciertos + p.errores + (p.blancos || 0)) + '</td><td>' + p.aciertos + '</td><td>' + p.errores + '</td><td>' + p.precision + '</td><td>' + fmt1(p.nivelIni === undefined ? p.nivel : p.nivelIni) + ' → ' + fmt1(p.nivel) + '</td><td>' + (p.refuerzos || 0) + '</td><td><code>' + p.codigo + '</code></td></tr>'; });
+          cuerpo.innerHTML = h2 + '</tbody></table>';
+        } else if (tab === 'exportar') {
+          cuerpo.innerHTML = '<p>' + ps.length + ' partida(s) guardada(s) en este dispositivo.</p>' +
+            '<div class="seccion"><h3>Para Excel / hoja de cálculo</h3><div class="modal-botones" style="justify-content:flex-start"><button class="btn verde" type="button" id="pp-csv">⬇ Descargar CSV</button>' +
+            '<button class="btn" type="button" id="pp-resumen">📋 Copiar resumen (Excel)</button><button class="btn" type="button" id="pp-tsv">📋 Copiar partidas (Excel)</button><button class="btn" type="button" id="pp-ver">👁 Mostrar CSV</button></div></div>' +
+            '<div class="seccion"><h3>Juntar varios iPads</h3><p>En cada iPad pulsa «Exportar todas las partidas», copia el texto y pégalo aquí, en tu iPad, en «Importar» (no se duplican).</p>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-exp">📤 Exportar todas las partidas</button></div>' +
+            '<textarea class="csv" id="pp-imp" placeholder="Pega aquí el texto exportado de otro iPad (puedes pegar varios, uno por línea)" aria-label="Texto exportado para importar" style="min-height:90px"></textarea>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-impgo">📥 Importar</button></div></div>' +
+            '<div class="seccion"><div class="modal-botones" style="justify-content:flex-start"><button class="btn rojo" type="button" id="pp-borrar">🗑 Borrar datos</button></div></div>' +
+            '<div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
+        } else if (tab === 'decodificar') {
+          cuerpo.innerHTML = '<p>Pega los códigos de resultado de tus alumnos (uno por línea) y pulsa «Decodificar». Se avisa de los códigos mal copiados o repetidos.</p>' +
+            '<textarea class="csv" id="dec-in" placeholder="L17-RP3-15-3-62-261124-1542-K7M" aria-label="Códigos de resultado, uno por línea"></textarea>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn verde" type="button" id="dec-go">🔍 Decodificar</button></div><div id="dec-out"></div>';
+        } else cuerpo.innerHTML = MODELO_HTML;
+      }
+      var pantalla = function () { return $('pp-area'); };
+      function mostrarArea(txt, msg) {
+        pantalla().innerHTML = '<p>' + msg + '</p><textarea class="csv" id="pp-txt" readonly aria-label="Texto para copiar"></textarea>';
+        var t = $('pp-txt'); t.value = txt; try { t.focus(); t.select(); } catch (e) { /* nada */ }
+      }
+      function aviso(t, mal) { var a = $('pp-aviso'); if (a) { a.textContent = t; a.className = mal ? 'aviso-mal' : 'aviso-ok'; } }
+      function copiar(txt, okMsg, area) {
+        var fallback = function () {
+          (area || mostrarArea)(txt, 'Selecciona y copia este texto:');
+          var ok = false; try { ok = document.execCommand('copy'); } catch (er) { ok = false; }
+          aviso(ok ? okMsg : 'No se pudo copiar automáticamente: copia el texto de abajo.', !ok);
+        };
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { aviso(okMsg); }, fallback);
+          else fallback();
+        } catch (er) { fallback(); }
+      }
+      tbar.addEventListener('click', function (e) { var b = e.target.closest('button[data-t]'); if (b) { tab = b.getAttribute('data-t'); pintar(); } });
+      cuerpo.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        aviso('');
+        if (b.id === 'pp-csv') {
+          var txt = csvTexto();
+          try {
+            var blob = new Blob(['﻿' + txt], { type: 'text/csv;charset=utf-8' });
+            var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'repaso-mates-resultados.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(function () { try { URL.revokeObjectURL(a.href); } catch (er) { /* nada */ } }, 2000);
+            aviso('CSV generado. Si no se descarga, usa «Mostrar CSV» y copia el texto.');
+          } catch (er) { mostrarArea(txt, 'No se ha podido descargar. Copia este texto y pégalo en una hoja de cálculo:'); }
+        } else if (b.id === 'pp-resumen') copiar(resumenTSV(), 'Resumen copiado: pégalo en Excel.');
+        else if (b.id === 'pp-tsv') copiar(tablaPartidas('\t'), 'Partidas copiadas: pégalas en Excel.');
+        else if (b.id === 'pp-ver') mostrarArea(csvTexto(), 'Texto CSV:');
+        else if (b.id === 'pp-exp') { var ex = exportarTodo(); mostrarArea(ex, 'Copia este texto y pégalo en «Importar» del iPad del profesor:'); copiar(ex, 'Texto copiado.'); }
+        else if (b.id === 'pp-impgo') {
+          var r = importarTodo($('pp-imp').value);
+          aviso('Importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
+        } else if (b.id === 'pp-borrar') {
+          Modal.abrir('<h2>¿Borrar todos los datos?</h2><p>Se eliminarán todas las partidas y la clasificación de este dispositivo. <b>No se puede deshacer.</b></p><p>Antes de borrar, te conviene descargar el CSV o exportar las partidas.</p>',
+            [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Exportar antes', fn: function () { Modal.panel('exportar'); } }, { t: 'Sí, borrar todo', cls: 'rojo', id: 'borrar-si', fn: function () { Almacen.borrar(); Modal.panel('exportar'); } }],
+            { cancel: function () { Modal.panel('exportar'); } });
+        } else if (b.id === 'dec-go') {
+          var res = decodificarVarios($('dec-in').value), out = $('dec-out');
+          if (!res.length) { out.innerHTML = '<p class="aviso-mal">No hay ningún código que decodificar.</p>'; return; }
+          var okN = res.filter(function (o) { return o.ok && !o.dup; }).length;
+          var h = '<p class="aviso-ok" role="status">' + okN + ' código(s) correcto(s) de ' + res.length + '.</p><table class="tabla"><thead><tr><th>Lista</th><th>Modo</th><th>Aciertos</th><th>Errores</th><th>Puntos</th><th>Ranking</th><th>Fecha</th><th>Hora</th><th>Estado</th></tr></thead><tbody>';
+          res.forEach(function (o) {
+            h += o.ok ? '<tr><td>' + o.lista + '</td><td>' + (o.modo === 'CR' ? 'Contrarreloj' : 'Rey') + '</td><td>' + o.aciertos + '</td><td>' + o.errores + '</td><td>' + o.puntos + '</td><td>' + o.valorRank + '</td><td>' + o.fecha + '</td><td>' + o.hora + '</td><td>' + (o.dup ? 'duplicado' : 'correcto') + '</td></tr>'
+              : '<tr><td colspan="8">' + esc(o.codigo) + '</td><td class="aviso-mal">' + esc(o.error) + '</td></tr>';
+          });
+          out.innerHTML = h + '</tbody></table><div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="dec-copiar">📋 Copiar tabla (Excel)</button><button class="btn" type="button" id="dec-csv">⬇ Descargar CSV</button></div><div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
+          Modal.ultimaDec = res;
+        } else if (b.id === 'dec-copiar') copiar(tablaDecodificada(Modal.ultimaDec || [], '\t'), 'Tabla copiada: pégala en Excel.');
+        else if (b.id === 'dec-csv') {
+          var t2 = tablaDecodificada(Modal.ultimaDec || [], ';');
+          try {
+            var bl = new Blob(['﻿' + t2], { type: 'text/csv;charset=utf-8' }), a2 = document.createElement('a'); a2.href = URL.createObjectURL(bl); a2.download = 'mates-navidad-codigos.csv';
+            document.body.appendChild(a2); a2.click(); document.body.removeChild(a2); setTimeout(function () { try { URL.revokeObjectURL(a2.href); } catch (er) { /* nada */ } }, 2000);
+            aviso('CSV generado.');
+          } catch (er) { mostrarArea(t2, 'No se ha podido descargar. Copia este texto:'); }
+        }
+      });
+      pintar();
+    },
+    ayuda: function () {
+      Modal.abrir('<h2>❓ Cómo funciona</h2><ol><li>Elige el <b>tema</b> que quieres repasar.</li><li>Resuelve la operación <b>de cabeza</b> y escribe el resultado con el teclado (<b>−</b> pone el signo menos). Pulsa <b>Comprobar</b>.</li>' +
+        '<li>Si fallas, te explicamos cómo se hace y la pregunta vuelve más adelante con otros números.</li></ol>' +
+        '<p><b>Nivel:</b> de 1 a 10 dentro del tema. Sube poco a poco si aciertas.</p>' +
+        '<p><b>Refuerzo:</b> si fallas varias seguidas, bajamos un poco el nivel, repasamos la regla y no volvemos a subir hasta que aciertes 3 seguidas.</p>' +
+        '<p>No hay reloj: lo importante es <b>entenderlo y acertar</b>. Pulsa <b>Terminar</b> cuando quieras para ver tu resumen.</p>',
+        [{ t: 'Entendido', cls: 'verde', fn: function () { Modal.cerrar(); } }], { cancel: function () { Modal.cerrar(); } });
+    }
+  };
+
+  var MODELO_HTML = '<div class="modelo"><h3>Qué es</h3><p>Repaso de cálculo mental con números enteros. Cada alumno entra con su número de lista, <b>elige un tema</b> (sumas y restas sin paréntesis, con paréntesis, multiplicaciones y divisiones, potencias sencillas, operaciones combinadas) y practica sin reloj. El nivel (1 a 10) se ajusta solo dentro del tema.</p>' +
+    '<h3>Cómo recoger los resultados de la clase</h3><ol>' +
+    '<li><b>Un iPad compartido:</b> en «Exportar y datos», «Descargar CSV» o «Copiar resumen (Excel)».</li>' +
+    '<li><b>Un iPad por alumno, solo el código:</b> al terminar, el alumno pulsa «Enviar a mi profesor» o te enseña el código. Los pegas, uno por línea, en «Decodificar».</li>' +
+    '<li><b>Un iPad por alumno, con todo el detalle:</b> en cada iPad, «Exportar todas las partidas»; pega el texto en «Importar» de tu iPad. Se fusionan sin duplicados.</li></ol>' +
+    '<h3>Refuerzo</h3><p>Si el alumno falla 4 de las últimas 6 preguntas (con al menos 5 respondidas), se activa el refuerzo: baja 2 niveles, se muestra el resumen de la regla y se repite hasta acertar 3 seguidas. Las preguntas falladas vuelven 3 preguntas después con otros números.</p>' +
+    '<h3>Código de resultado</h3><p>El código <code>L17-RP3-15-3-62-261124-1542-K7M</code> es: lista 17, tema 3, 15 aciertos, 3 errores, nivel 6,2, fecha 24/11/2026 15:42 y 3 caracteres de control (detectan erratas; no es una firma).</p>' +
+    '<h3>Datos y PIN</h3><p>Los datos se guardan solo en este dispositivo (navegador), incluido el progreso de cada alumno en cada tema. Tras 3 PIN erróneos el panel se bloquea 30 s y el bloqueo se duplica en cada fallo siguiente.</p>' +
+    '<details><summary>Modelo adaptativo (para el curioso)</summary>' +
+    '<p>En cada tema se mantiene una distribución de probabilidad sobre la capacidad θ del alumno (rejilla de 0 a 12). Tras cada respuesta se aplica la regla de Bayes con <code>P(acierto | θ, d) = 0,05 + 0,95 · σ((θ − d)/s)</code>. Se busca el nivel con ≈ 72 % de probabilidad de acierto, sin saltar más de ±1 nivel entre preguntas. Al volver a un tema se retoma algo por debajo del nivel guardado para afianzar.</p></details></div>';
+
+  /* --- eventos y arranque --- */
+  UI.cuentaLogo = 0; UI.tLogo = 0;
+  UI.iniciar = function () {
+    Almacen.cargar(); Sonido.mute = Almacen.getMute();
+    UI.pintarSonido();
+    var esc6 = (typeof escenaLista === 'string' && escenaLista) ? escenaLista : 'π Σ √ ∞ ÷ ×';
+    $('escena-lista').innerHTML = '<div class="deco-lista">' + decoSVG() + '</div><div class="simbolos">' + esc(esc6) + '</div>';
+    $('escena-menu').textContent = esc6;
+    Teclado.crear($('tec-lista'), { signo: false, fila: '<button type="button" class="tecla entrar" data-k="ok">Entrar</button>' });
+    Teclado.crear($('tec-juego'), { signo: true, fila: '<button type="button" class="tecla nose" data-k="nose">No sé</button><button type="button" class="tecla ok" data-k="ok" aria-label="Comprobar">✔ Comprobar</button>' });
+    // estrella y luces del árbol de la escena de inicio encendidas
+    $('temas').addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-tema]') : null; if (!b) return;
+      Sonido.despertar(); iniciar('RP', alumnoActual, parseInt(b.getAttribute('data-tema'), 10));
+    });
+    $('btn-ayuda').addEventListener('click', Modal.ayuda);
+    $('btn-cambiar').addEventListener('click', UI.irLista);
+    $('btn-pausa').addEventListener('click', UI.pausar);
+    $('btn-salir').addEventListener('click', UI.salir);
+    $('fbe-ok').addEventListener('click', function () { UI.bloquear(); avanzar(); });
+    $('p-result').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return; Sonido.despertar();
+      if (b.id === 'r-otra') iniciar('RP', alumnoActual, ultimoResultado.rec.tema);
+      else if (b.id === 'r-modo') UI.irMenu();
+      else if (b.id === 'r-alumno') UI.irLista();
+      else if (b.id === 'r-enviar') UI.enviar();
+    });
+    $('btn-sonido').addEventListener('click', function () { Sonido.despertar(); Sonido.mute = !Sonido.mute; Almacen.setMute(Sonido.mute); UI.pintarSonido(); if (!Sonido.mute) Sonido.tecla(); });
+    // 5 toques en el logo abren el panel de profesorado (NO durante una partida)
+    $('logo').addEventListener('click', function () {
+      if (UI.pant === 'juego') return;
+      var t = Date.now(); if (t - UI.tLogo > 3000) UI.cuentaLogo = 0; UI.tLogo = t; UI.cuentaLogo++;
+      if (UI.cuentaLogo >= 5) { UI.cuentaLogo = 0; if (!Modal.abierto) Modal.pedirPin(); }
+    });
+    // protección contra toques fantasma: justo tras cambiar de pantalla o cerrar un diálogo se ignoran los botones
+    document.addEventListener('click', function (e) {
+      if (ahoraMs() < UI.bloqueoHasta && e.target && e.target.closest && e.target.closest('button')) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
+    // teclado físico
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      var k = e.key, tgt = e.target && e.target.tagName;
+      if (Modal.abierto) {
+        if (k === 'Tab') { Modal.atrapar(e); return; }
+        if (k === 'Escape') { e.preventDefault(); Modal.escape(); return; }
+        if (tgt === 'TEXTAREA' || tgt === 'INPUT') return;
+        if (UI.ctx === 'pin') {
+          var cp = null;
+          if (/^[0-9]$/.test(k)) cp = k; else if (k === 'Backspace' || k === 'Delete') cp = 'del';
+          else if (k === 'Enter' && (tgt !== 'BUTTON' || (e.target.classList && e.target.classList.contains('tecla')))) cp = 'ok';
+          if (cp !== null) { e.preventDefault(); UI.pulsar(cp); }
+          return;
+        }
+        if (k === 'Enter' && tgt !== 'BUTTON' && Modal.defecto) { var d = $(Modal.defecto); if (d) { d.click(); e.preventDefault(); } }
+        return;
+      }
+      if (tgt === 'TEXTAREA' || tgt === 'INPUT') return;
+      var code = null;
+      if (/^[0-9]$/.test(k)) code = k;
+      else if (k === '-' || k === '−') code = 'neg-';
+      else if (k === '+') code = 'pos';
+      else if (k === 'Backspace' || k === 'Delete') code = 'del';
+      else if (k === 'Enter') {
+        if (UI.ctx !== 'lista' && UI.ctx !== 'juego') return;       // en el resto de pantallas Enter activa el botón enfocado
+        code = 'ok';
+      }
+      if (code === null) return;
+      if ((code === 'neg-' || code === 'pos') && UI.ctx !== 'juego') return;
+      if (UI.ctx === 'juego' && J && J.esperando && J.lectura && code === 'ok') { UI.bloquear(); avanzar(); e.preventDefault(); return; }
+      e.preventDefault(); UI.pulsar(code);
+    });
+    document.addEventListener('pointerdown', function () { Sonido.despertar(); }, { once: true, capture: true });
+    $('modal').addEventListener('click', function (e) { if (e.target === $('modal') && Modal.cancel && UI.ctx === 'pin') Modal.cancel(); });
+    window.addEventListener('resize', function () { if (UI.pant === 'juego' && J && J.q) UI.ajustarExpr(); });
+    UI.listo = true;
+    UI.irLista();
+    if (typeof setInterval !== 'undefined') UI.tIntervalo = setInterval(tick, 100);
+    Nieve.iniciar();
+  };
+  UI.pintarSonido = function () {
+    var b = $('btn-sonido'); b.textContent = Sonido.mute ? '🔇' : '🔊';
+    b.setAttribute('aria-label', Sonido.mute ? 'Activar sonido' : 'Silenciar sonido'); b.setAttribute('aria-pressed', Sonido.mute ? 'true' : 'false');
+  };
+
+  /* --- símbolos matemáticos flotando en canvas (≤ 40) --- */
+  var Nieve = {
+    iniciar: function () {
+      var cv = $('nieve'), cx = cv.getContext && cv.getContext('2d'); if (!cx) return;
+      var w = 0, h = 0, copos = [], N = 34, i, GL = ['π', 'Σ', '√', '∞', '÷', '×', '+', '−', '=', '%', '²', '∠'];
+      var reducido = G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function medir() { var dpr = Math.min(G.devicePixelRatio || 1, 2); w = G.innerWidth; h = G.innerHeight; cv.width = w * dpr; cv.height = h * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+      medir(); G.addEventListener('resize', medir);
+      for (i = 0; i < N; i++) copos.push({ x: Math.random() * w, y: Math.random() * h, r: 14 + Math.random() * 22, v: 0.15 + Math.random() * 0.45, d: Math.random() * 6.28, g: GL[i % GL.length] });
+      function pintar() {
+        cx.clearRect(0, 0, w, h); cx.fillStyle = 'rgba(243,241,231,.13)'; cx.textAlign = 'center';
+        for (var k = 0; k < copos.length; k++) { var c = copos[k]; cx.font = Math.round(c.r) + 'px serif'; cx.fillText(c.g, c.x, c.y); }
+      }
+      function paso() {
+        for (var k = 0; k < copos.length; k++) { var c = copos[k]; c.y += c.v; c.d += 0.01; c.x += Math.sin(c.d) * 0.4; if (c.y > h + 40) { c.y = -40; c.x = Math.random() * w; } }
+        pintar(); if (!document.hidden) G.requestAnimationFrame(paso); else setTimeout(paso, 500);
+      }
+      if (reducido) pintar(); else G.requestAnimationFrame(paso);
+    }
+  };
+
+  if (TEST) API.ui = UI;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', UI.iniciar); else UI.iniciar();
+})();
+</script>
+</body>
+</html>
