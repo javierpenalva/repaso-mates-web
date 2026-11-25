@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kxsVGwXv4xU/Hqz5EqGWFWegnHmJBP+tYBQ/etBMxus='; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KNo32/ssPXuszMJiuFS64fh62uvNyYAOoqYAviOLMI8='; style-src 'unsafe-inline'; img-src data: blob:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1612,7 +1612,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     anadir: function (p) { this.mem.partidas.push(p); this.guardar(); },
     partidas: function () { return this.mem.partidas.slice(); },
     borrar: function () { this.mem.partidas = []; this.guardar(); },                       // solo sesiones: el progreso (niveles, medallas, jefe) se conserva
-    borrarTodo: function () { var pin = this.mem.pin, mute = this.mem.mute; this.mem = { partidas: [], mute: mute, pin: pin || { f: 0, hasta: 0 }, prog: {} }; this.guardar(); },
+    borrarTodo: function () { var pin = this.mem.pin, mute = this.mem.mute, id = this.mem.id; this.mem = { partidas: [], mute: mute, pin: pin || { f: 0, hasta: 0 }, prog: {}, id: id }; this.guardar(); },
     // iPad personal: se vincula al primer alumno que confirma su identidad; solo el profesorado (PIN) puede cambiarlo
     ajustes: function () { var a = this.mem.ajustes; return { personal: !a || a.personal !== false }; },
     setPersonal: function (v) { this.mem.ajustes = { personal: !!v }; this.guardar(); },
@@ -1621,6 +1621,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     // progreso por alumno y tema: { theta, n, ts }
     prog: function (lista, tema) { return (this.mem.prog || {})[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] || null; },
     setProg: function (lista, tema, v) { if (!this.mem.prog) this.mem.prog = {}; this.mem.prog[(grupoActual ? grupoActual + '|' : '') + lista + '-' + tema] = v; this.guardar(); },
+    // identificador aleatorio de esta iPad (4 caracteres): viaja en sesiones, códigos y copias para detectar un mismo número desde iPads distintas
+    idDisp: function () {
+      if (!/^[0-9A-Z]{4}$/.test(this.mem.id || '')) {
+        var n = 0; try { var a = new Uint32Array(1); (G.crypto || window.crypto).getRandomValues(a); n = a[0]; } catch (e) { n = Math.floor(Math.random() * 4294967296); }
+        this.mem.id = b32(n >>> 0, 4); this.guardar();
+      }
+      return this.mem.id;
+    },
     ultimo: function () { return this.mem.ultimo || null; },
     setUltimo: function (g) { this.mem.ultimo = g; this.guardar(); },
     getMute: function () { return !!this.mem.mute; },
@@ -1962,22 +1970,29 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function chkCodigo(base) { return b32(hash32('mn-codigo|' + base), 3); }
   function armarCodigo(p, d) {
     var base = 'L' + (grupoValido(p.grupo) ? p.grupo : '') + p.lista + '-' + (p.modo === 'RP' ? 'RP' + p.tema : p.modo) + '-' + p.aciertos + '-' + p.errores + '-' + (p.modo === 'RP' ? Math.round(p.nivel * 10) : p.puntos) + '-' +
-      p2(d.getFullYear() % 100) + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes());
+      p2(d.getFullYear() % 100) + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()) + (/^[0-9A-Z]{4}$/.test(p.dev || '') ? '-' + p.dev : '');
     return base + '-' + chkCodigo(base);
   }
   function decodificarUno(txt) {
     var s = String(txt).replace(/\s+/g, '').toUpperCase();
-    var m = /^L([1-3][A-G])?(\d{1,2})-(CR|RM|RP[1-5]|JF)-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})-([0-9A-Z]{3})$/.exec(s);
+    var m = /^L([1-3][A-G])?(\d{1,2})-(CR|RM|RP[1-5]|JF)-(\d+)-(\d+)-(\d+)-(\d{6})-(\d{4})(?:-([0-9A-Z]{4}))?-([0-9A-Z]{3})$/.exec(s);
     if (!m) return { ok: false, codigo: String(txt).trim(), error: 'formato no válido' };
     var base = s.slice(0, s.lastIndexOf('-'));
     var o = { ok: true, codigo: s, grupo: m[1] || '', lista: parseInt(m[2], 10), modo: m[3], aciertos: parseInt(m[4], 10), errores: parseInt(m[5], 10), puntos: parseInt(m[6], 10),
-      fecha: '20' + m[7].slice(0, 2) + '-' + m[7].slice(2, 4) + '-' + m[7].slice(4, 6), hora: m[8].slice(0, 2) + ':' + m[8].slice(2, 4), control: m[9] };
+      fecha: '20' + m[7].slice(0, 2) + '-' + m[7].slice(2, 4) + '-' + m[7].slice(4, 6), hora: m[8].slice(0, 2) + ':' + m[8].slice(2, 4), dev: m[9] || '', control: m[10] };
     if (o.modo.charAt(0) === 'R' && o.modo.charAt(1) === 'P') { o.tema = parseInt(o.modo.charAt(2), 10); o.nivel = o.puntos / 10; o.puntos = 0; }
     if (o.modo === 'JF') o.victoria = o.puntos === 1;
     o.valorRank = o.modo === 'CR' ? o.aciertos - CFG.ERR_PESO_RANK * o.errores : o.puntos;
-    if (chkCodigo(base) !== m[9]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
+    if (chkCodigo(base) !== m[10]) { o.ok = false; o.error = 'el control no coincide (código mal copiado o inventado)'; }
     else if (o.lista < 1 || o.lista > LISTA_MAX) { o.ok = false; o.error = 'número de lista fuera de rango'; }
     return o;
+  }
+  // alumnos (grupo|número) con sesiones procedentes de 2 o más iPads: posible suplantación (o uso legítimo de otra iPad) a revisar
+  function variosDispositivos(items) {
+    var por = {}, res = {};
+    items.forEach(function (p) { if (!/^[0-9A-Z]{4}$/.test(p.dev || '')) return; var k = (p.grupo || '') + '|' + p.lista; (por[k] = por[k] || {})[p.dev] = true; });
+    Object.keys(por).forEach(function (k) { var d = Object.keys(por[k]); if (d.length > 1) res[k] = d.sort(); });
+    return res;
   }
   function decodificarVarios(texto) {
     var lineas = String(texto).split(/[\r\n]+/), vistos = {}, out = [];
@@ -1987,6 +2002,8 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       if (o.ok) { if (vistos[o.codigo]) { o.dup = true; } vistos[o.codigo] = true; }
       out.push(o);
     });
+    var vd = variosDispositivos(out.filter(function (o) { return o.ok; }));
+    out.forEach(function (o) { if (o.ok && vd[(o.grupo || '') + '|' + o.lista]) o.variosDisp = true; });
     return out;
   }
   function filaTSV(arr, sep) {
@@ -1995,7 +2012,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function tablaDecodificada(res, sep) {
     var cab = ['grupo', 'lista', 'tema', 'aciertos', 'errores', 'nivel', 'fecha', 'hora', 'estado', 'codigo'];
     var f = res.map(function (o) {
-      return o.ok ? [etqGrupo(o.grupo), o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : ''), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, o.dup ? 'duplicado' : 'correcto', o.codigo]
+      return o.ok ? [etqGrupo(o.grupo), o.lista, o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : ''), o.aciertos, o.errores, o.tema ? fn(o.nivel) : '', o.fecha, o.hora, (o.dup ? 'duplicado' : 'correcto') + (o.variosDisp ? ' (varias iPads)' : ''), o.codigo]
         : ['', '', '', '', '', '', '', '', 'ERROR: ' + o.error, o.codigo];
     });
     return [filaTSV(cab, sep)].concat(f.map(function (r) { return filaTSV(r, sep); })).join(sep === ';' ? '\r\n' : '\n');
@@ -2025,7 +2042,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
   function exportarTodo(filtro) {
     var filas = Almacen.partidas().filter(function (p) { return !filtro || filtro(p); }).map(function (p) {
       var n = p.niveles || {}, f = function (x) { return x === null || x === undefined ? -1 : x; };
-      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]).concat([grupoValido(p.grupo) ? p.grupo : '']);   // repaso: tema, nivel inicial, refuerzos
+      return [p.lista, p.modo, p.ts, p.puntos, p.aciertos, p.errores, p.blancos || 0, p.tiempo || 0, p.tiempoMedio || 0, p.nivel || 0, p.maxNivel || 0, p.mejorRacha || 0].concat(p.modo === 'JF' ? [0, -1, p.vidas || 0, p.puntos === 1 ? 1 : 0] : p.modo === 'RP' ? [p.tema, p.nivelIni === undefined ? -1 : p.nivelIni, p.refuerzos || 0, -1] : [f(n.suma), f(n.mult), f(n.pot), f(n.comb)]).concat([grupoValido(p.grupo) ? p.grupo : '', /^[0-9A-Z]{4}$/.test(p.dev || '') ? p.dev : '']);   // repaso: tema, nivel inicial, refuerzos
     });
     var carga = b64enc(JSON.stringify(filas));
     return 'MN1:' + carga + ':' + b32(hash32('mn-export|' + carga), 6);
@@ -2042,14 +2059,14 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       if (filas.length > 5000) { r.invalidas++; return; }
       filas.forEach(function (f) {
         // cada campo numérico debe ser un número finito y acotado (el texto importado nunca llega al panel como HTML)
-        var numOk = Array.isArray(f) && f.length >= 16 && f.length <= 17 && f.slice(0, 16).every(function (x, i) { return i === 1 || (typeof x === 'number' && isFinite(x) && Math.abs(x) <= 1e13); });
+        var numOk = Array.isArray(f) && f.length >= 16 && f.length <= 18 && (f[16] === undefined || typeof f[16] === 'string') && (f[17] === undefined || typeof f[17] === 'string') && f.slice(0, 16).every(function (x, i) { return i === 1 || (typeof x === 'number' && isFinite(x) && Math.abs(x) <= 1e13); });
         if (!numOk || !(f[0] >= 1 && f[0] <= LISTA_MAX) || f[0] !== Math.floor(f[0]) || !((f[1] === 'RP' && f[12] >= 1 && f[12] <= 5 && f[12] === Math.floor(f[12])) || (f[1] === 'JF' && f[12] === 0)) || f[4] < 0 || f[5] < 0 || f[6] < 0 || f[4] + f[5] + f[6] > 100000 || f[2] < 0 || f[2] > 4102444800000) { r.invalidas++; return; }
         var gr = grupoValido(f[16]) ? f[16] : '', k = gr + '|' + f[0] + '|' + f[1] + '|' + f[2];
         if (claves[k]) { r.duplicadas++; return; }
         claves[k] = true;
         var d = new Date(f[2]), tot = f[4] + f[5] + f[6], g = function (x) { return x < 0 ? null : x; };
         var rec = { grupo: gr, lista: f[0], modo: f[1], tema: f[12], fecha: fechaHora(d), ts: f[2], puntos: f[1] === 'JF' ? (f[15] === 1 ? 1 : 0) : 0, aciertos: f[4], errores: f[5], blancos: f[6], precision: tot ? Math.round(100 * f[4] / tot) : 0,
-          tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[1] === 'RP' ? f[14] : 0, importada: true };
+          tiempo: f[7], tiempoMedio: f[8], nivel: f[9], nivelIni: g(f[13]) === null ? f[9] : f[13], maxNivel: f[10], mejorRacha: f[11], refuerzos: f[1] === 'RP' ? f[14] : 0, importada: true, dev: /^[0-9A-Z]{4}$/.test(f[17] || '') ? f[17] : '' };
         if (f[1] === 'JF') rec.vidas = f[14];
         rec.codigo = armarCodigo(rec, d);
         Almacen.mem.partidas.push(rec); r.anadidas++;
@@ -2156,6 +2173,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
       nivel: Math.round(nivelGlobal() * 10) / 10, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, niveles: niveles
     };
+    rec.dev = Almacen.idDisp();
     rec.codigo = armarCodigo(rec, ahora);
     J.codigo = rec.codigo;
     var valor = Puntuacion.rank(rec), esValida = valida(rec);
@@ -2182,6 +2200,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
       nivel: Math.round(th * 10) / 10, nivelIni: Math.round(J.nivelIni * 10) / 10, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, refuerzos: J.nRefuerzos
     };
+    rec.dev = Almacen.idDisp();
     rec.codigo = armarCodigo(rec, ahora);
     J.codigo = rec.codigo;
     if (J.respondidas > 0) {                                   // una sesión vacía no cambia el progreso
@@ -2204,6 +2223,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
       tiempo: Math.round(J.tJuego / 1000), tiempoMedio: J.respondidas ? Math.round(10 * J.sumT / J.respondidas) / 10 : 0,
       nivel: 7, nivelIni: 6, maxNivel: J.maxNivelAcertado, mejorRacha: J.mejorRacha, vidas: J.vidas
     };
+    rec.dev = Almacen.idDisp();
     rec.codigo = armarCodigo(rec, ahora);
     J.codigo = rec.codigo;
     Almacen.anadir(rec);
@@ -2312,6 +2332,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
     generar: function (cat, nivel, opc) { return Generador.generar(cat, nivel, opc); },
     generarTema: function (tema, nivel, opc) { return Generador.generarTema(tema, nivel, opc); },
     jefeEstado: jefeEstado,
+    dispositivo: function () { return Almacen.idDisp(); }, variosDispositivos: function () { return variosDispositivos(Almacen.partidas()); },
     dueno: function () { return Almacen.dueno(); }, fijarDueno: function (g, l) { Almacen.setDueno(g, l); }, personal: function (v) { if (v !== undefined) Almacen.setPersonal(v); return Almacen.ajustes().personal; }, borrarTodo: function () { Almacen.borrarTodo(); },
     copiaDatos: copiaDatos, restaurarCopia: restaurarCopia,
     medallas: function () { return medallasAlumno(); },
@@ -3074,9 +3095,11 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
         var ps = Almacen.partidas().filter(function (p) { var ff = filtroFn(); return !ff || ff(p); }).sort(function (a, b) { return (a.grupo || '').localeCompare(b.grupo || '') || (a.lista - b.lista) || (a.ts - b.ts); });
         if (tab === 'resumen') {
           var rp = ps.filter(function (p) { return p.modo === 'RP' || p.modo === 'JF'; });
-          if (!rp.length) { cuerpo.innerHTML = '<p>' + (etqFiltro() ? 'No hay sesiones de repaso de ' + etqFiltro() + ' en este dispositivo.' : 'Todavía no hay sesiones de repaso guardadas en este dispositivo.') + '</p>'; return; }
+          var vd = variosDispositivos(Almacen.partidas()), vdK = Object.keys(vd).filter(function (k) { var pp = k.split('|'), ff = filtroFn(); return !ff || ff({ grupo: pp[0], lista: parseInt(pp[1], 10) }); });
+          var avisoVd = vdK.length ? '<div class="aviso-mal" role="alert"><b>⚠ Revisa estos alumnos:</b> tienen sesiones desde más de una iPad (posible suplantación, o simplemente han usado otra iPad). ' + vdK.map(function (k) { var pp = k.split('|'); return esc(etqAlumno(pp[0], parseInt(pp[1], 10))) + ' (' + vd[k].length + ' iPads: ' + esc(vd[k].join(', ')) + ')'; }).join(' · ') + '.</div>' : '';
+          if (!rp.length) { cuerpo.innerHTML = avisoVd + '<p>' + (etqFiltro() ? 'No hay sesiones de repaso de ' + etqFiltro() + ' en este dispositivo.' : 'Todavía no hay sesiones de repaso guardadas en este dispositivo.') + '</p>'; return; }
           var por = {}; rp.forEach(function (p) { var kk = (p.grupo || '') + '|' + p.lista, l = (por[kk] = por[kk] || {}); (l[p.tema] = l[p.tema] || []).push(p); });
-          var h = '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº lista</th>';
+          var h = avisoVd + '<p>Por alumno y tema: <b>nivel actual</b> y % de acierto (sesiones).</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº lista</th>';
           for (var tt = 1; tt <= 5; tt++) h += '<th>' + TEMAS_NOMBRE[tt] + '</th>';
           h += '<th>Jefe Final</th></tr></thead><tbody>';
           Object.keys(por).sort(function (a, b) { var x = a.split('|'), y = b.split('|'); return x[0].localeCompare(y[0]) || (x[1] - y[1]); }).forEach(function (k) {
@@ -3105,7 +3128,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
             '<textarea class="csv" id="pp-imp" placeholder="Pega aquí el texto exportado de otro iPad (puedes pegar varios, uno por línea)" aria-label="Texto exportado para importar" style="min-height:90px"></textarea>' +
             '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-impgo">📥 Importar</button></div></div>' +
             '<div class="seccion"><h3>iPad personal</h3><p>' + (Almacen.ajustes().personal ? '<b>Activado</b>: la iPad se vincula al primer alumno que confirma su número y solo el profesorado (PIN) puede cambiarlo. ' + (Almacen.dueno() ? 'Vinculada a <b>' + etqAlumno(Almacen.dueno().g, Almacen.dueno().l) + '</b>.' : 'Ahora mismo no está vinculada.') : '<b>Desactivado</b>: cualquiera puede elegir cualquier número (iPad compartida).') + '</p>' +
-            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-personal">' + (Almacen.ajustes().personal ? 'Desactivar (iPad compartida)' : 'Activar (iPad personal)') + '</button>' + (Almacen.dueno() ? '<button class="btn" type="button" id="pp-desv">🔓 Desvincular esta iPad</button>' : '') + '</div></div>' +
+            '<div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="pp-personal">' + (Almacen.ajustes().personal ? 'Desactivar (iPad compartida)' : 'Activar (iPad personal)') + '</button><button class="btn verde" type="button" id="pp-vincular">🔒 ' + (Almacen.dueno() ? 'Cambiar alumno vinculado…' : 'Vincular a un alumno…') + '</button>' + (Almacen.dueno() ? '<button class="btn" type="button" id="pp-desv">🔓 Desvincular esta iPad</button>' : '') + '</div><p class="m">Antes de repartir las iPads, vincula cada una a su alumno: así nadie puede quedarse con el número de otro. Id. de esta iPad: <b>' + esc(Almacen.idDisp()) + '</b>.</p></div>' +
             '<div class="seccion"><h3>Borrar</h3><p><b>Borrar sesiones</b> elimina solo las partidas guardadas (lo que ves en Resumen, Partidas y el CSV). <b>No toca</b> el nivel, las medallas ni el Jefe Final de los alumnos. <b>Restablecer iPad</b> borra TODO: sesiones, niveles, medallas, jefe, tema y vínculo.</p><div class="modal-botones" style="justify-content:flex-start"><button class="btn rojo" type="button" id="pp-borrar">🗑 Borrar sesiones</button><button class="btn rojo" type="button" id="pp-reset">⚠ Restablecer iPad (borra todo)</button></div></div>' +
             '<div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
         } else if (tab === 'decodificar') {
@@ -3153,6 +3176,15 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
           var r = restaurarCopia($('pp-imp').value);
           aviso('Progreso restaurado: ' + r.prog + ' · sesiones importadas: ' + r.anadidas + ' · repetidas (ignoradas): ' + r.duplicadas + (r.invalidas ? ' · no válidas: ' + r.invalidas : ''), r.invalidas > 0 && r.anadidas === 0);
         } else if (b.id === 'pp-personal') { Almacen.setPersonal(!Almacen.ajustes().personal); Modal.panel('exportar');
+        } else if (b.id === 'pp-vincular') {
+          var dv0 = Almacen.dueno(), opN = '';
+          for (var nn = 1; nn <= LISTA_MAX; nn++) opN += '<option value="' + nn + '"' + (dv0 && dv0.l === nn ? ' selected' : '') + '>' + nn + '</option>';
+          Modal.abrir('<h2>🔒 Vincular esta iPad a un alumno</h2><p>El alumno entrará directamente con este curso, grupo y número, y no podrá cambiarlos sin el PIN.</p>' +
+            '<div class="filtro"><label>Curso <select id="vi-c">' + CURSOS.map(function (c) { return '<option value="' + c + '"' + (dv0 && dv0.g.charAt(0) === String(c) ? ' selected' : '') + '>' + c + 'º ESO</option>'; }).join('') + '</select></label> ' +
+            '<label>Grupo <select id="vi-g">' + GRUPOS.map(function (g) { return '<option value="' + g + '"' + (dv0 && dv0.g.charAt(1) === g ? ' selected' : '') + '>' + g + '</option>'; }).join('') + '</select></label> ' +
+            '<label>Nº <select id="vi-n">' + opN + '</select></label></div>',
+            [{ t: 'Cancelar', fn: function () { Modal.panel('exportar'); } }, { t: 'Vincular', cls: 'verde', id: 'vi-ok', fn: function () { var g = $('vi-c').value + $('vi-g').value, n = parseInt($('vi-n').value, 10); Almacen.setPersonal(true); Almacen.setDueno(g, n); Modal.panel('exportar'); } }],
+            { cancel: function () { Modal.panel('exportar'); } });
         } else if (b.id === 'pp-desv') { Almacen.setDueno(null); Modal.panel('exportar');
         } else if (b.id === 'pp-reset') {
           Modal.abrir('<h2>⚠ ¿Restablecer esta iPad?</h2><p>Se borrará <b>TODO</b>: sesiones, niveles, medallas, Jefe Final, tema y la vinculación a un alumno. <b>No se puede deshacer.</b></p><p>Antes te conviene hacer una «Copia completa».</p>',
@@ -3168,7 +3200,7 @@ if (typeof module !== 'undefined') module.exports = { MENSAJES_ACIERTO: MENSAJES
           var okN = res.filter(function (o) { return o.ok && !o.dup; }).length;
           var h = '<p class="aviso-ok" role="status">' + okN + ' código(s) correcto(s) de ' + res.length + '.</p><table class="tabla"><thead><tr><th>Grupo</th><th>Nº</th><th>Sesión</th><th>Aciertos</th><th>Errores</th><th>Nivel</th><th>Fecha</th><th>Hora</th><th>Estado</th></tr></thead><tbody>';
           res.forEach(function (o) {
-            h += o.ok ? '<tr><td>' + (etqGrupo(o.grupo) || '—') + '</td><td>' + o.lista + '</td><td>' + (o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : '')) + '</td><td>' + o.aciertos + '</td><td>' + o.errores + '</td><td>' + (o.tema ? fmt1(o.nivel) : '—') + '</td><td>' + o.fecha + '</td><td>' + o.hora + '</td><td>' + (o.dup ? 'duplicado' : 'correcto') + '</td></tr>'
+            h += o.ok ? '<tr><td>' + (etqGrupo(o.grupo) || '—') + '</td><td>' + o.lista + '</td><td>' + (o.tema ? nombreTema(o.tema) : nombreModo(o.modo) + (o.modo === 'JF' ? (o.victoria ? ' (victoria)' : ' (derrota)') : '')) + '</td><td>' + o.aciertos + '</td><td>' + o.errores + '</td><td>' + (o.tema ? fmt1(o.nivel) : '—') + '</td><td>' + o.fecha + '</td><td>' + o.hora + '</td><td>' + (o.dup ? 'duplicado' : 'correcto') + (o.variosDisp ? ' · ⚠ varias iPads' : '') + '</td></tr>'
               : '<tr><td colspan="8">' + esc(o.codigo) + '</td><td class="aviso-mal">' + esc(o.error) + '</td></tr>';
           });
           out.innerHTML = h + '</tbody></table><div class="modal-botones" style="justify-content:flex-start"><button class="btn" type="button" id="dec-copiar">📋 Copiar tabla (Excel)</button><button class="btn" type="button" id="dec-csv">⬇ Descargar CSV</button></div><div class="aviso-ok" id="pp-aviso" role="status"></div><div id="pp-area"></div>';
